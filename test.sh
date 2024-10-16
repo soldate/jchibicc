@@ -3,7 +3,7 @@ assert() {
   expected="$1"
   input="$2"
 
-  javac -d bin src/jchibicc/Main.java 
+  javac -d bin src/jchibicc/*.java 
   java -cp bin jchibicc.Main "$input" > tmp.s || exit
   gcc -static -o tmp tmp.s
   ./tmp
