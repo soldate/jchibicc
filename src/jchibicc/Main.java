@@ -22,6 +22,7 @@ public class Main {
 		ND_SUB, // -
 		ND_MUL, // *
 		ND_DIV, // /
+		ND_NEG, // unary -
 		ND_NUM, // Integer
 	}
 
@@ -158,7 +159,7 @@ public class Main {
 
 	// mul = primary ("*" primary | "/" primary)*
 	static Node mul() {
-		Node node = primary();
+		Node node = unary();
 
 		for (;;) {
 			if (token.equals("*")) {
@@ -173,6 +174,13 @@ public class Main {
 
 			return node;
 		}
+	}
+
+	// unary = ("+" | "-") unary | primary
+	static Node unary() {
+		if (token.equals("+")) return unary();
+		if (token.equals("-")) return new Node(NodeKind.ND_NEG, unary(), null);
+		return primary();
 	}
 
 	// primary = "(" expr ")" | num
@@ -210,8 +218,13 @@ public class Main {
 	}
 
 	static void gen_expr(Node node) {
-		if (node.kind == NodeKind.ND_NUM) {
+		switch (node.kind) {
+		case ND_NUM:
 			printf("  mov $%d, %%rax\n", node.val);
+			return;
+		case ND_NEG:
+			gen_expr(node.lhs);
+			printf("  neg %%rax\n");
 			return;
 		}
 
@@ -233,6 +246,13 @@ public class Main {
 		case ND_DIV:
 			printf("  cqo\n");
 			printf("  idiv %%rdi\n");
+			return;
+		case ND_NUM:
+			printf("  mov $%d, %%rax\n", node.val);
+			return;
+		case ND_NEG:
+			gen_expr(node.lhs);
+			printf("  neg %%rax\n");
 			return;
 		}
 
