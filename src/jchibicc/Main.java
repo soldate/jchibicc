@@ -23,6 +23,10 @@ public class Main {
 		ND_MUL, // *
 		ND_DIV, // /
 		ND_NEG, // unary -
+		ND_EQ, // ==
+		ND_NE, // !=
+		ND_LT, // <
+		ND_LE, // <=
 		ND_NUM, // Integer
 	}
 
@@ -117,7 +121,7 @@ public class Main {
 	//
 
 	private static List<Token> tokenize(String code) {
-		String regex = "\\w+|[{}();=+\\-*/]";
+		String regex = "\\w+|[{}();]|==|<=|>=|!=|\\+\\+|--|&&|\\|\\||[+\\-*/<>=!]";
 
 		Pattern pattern = Pattern.compile(regex);
 		Matcher matcher = pattern.matcher(code);
@@ -137,9 +141,62 @@ public class Main {
 	//
 	// Parser
 	//
-
-	// expr = mul ("+" mul | "-" mul)*
+	
+	// expr = equality
 	static Node expr() {
+	  return equality();
+	}	
+
+	// equality = relational ("==" relational | "!=" relational)*
+	static Node equality() {
+	  Node node = relational();
+
+	  for (;;) {
+	    if (token.equals("==")) {
+	      node = new Node(NodeKind.ND_EQ, node, relational());
+	      continue;
+	    }
+
+	    if (token.equals("!=")) {
+	      node = new Node(NodeKind.ND_NE, node, relational());
+	      continue;
+	    }
+
+	    return node;
+	  }
+	}
+
+	// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+	static Node relational() {
+	  Node node = add();
+
+	  for (;;) {
+	    if (token.equals("<")) {
+	      node = new Node(NodeKind.ND_LT, node, add());
+	      continue;
+	    }
+
+	    if (token.equals("<=")) {
+	      node = new Node(NodeKind.ND_LE, node, add());
+	      continue;
+	    }
+
+	    if (token.equals(">")) {
+	      node = new Node(NodeKind.ND_LT, add(), node);
+	      continue;
+	    }
+
+	    if (token.equals(">=")) {
+	      node = new Node(NodeKind.ND_LE, add(), node);
+	      continue;
+	    }
+
+	    return node;
+	  }
+	}
+	
+	// add = mul ("+" mul | "-" mul)*
+	static Node add() {
 		Node node = mul();
 
 		for (;;) {
@@ -155,7 +212,7 @@ public class Main {
 
 			return node;
 		}
-	}
+	}	
 
 	// mul = primary ("*" primary | "/" primary)*
 	static Node mul() {
@@ -226,6 +283,8 @@ public class Main {
 			gen_expr(node.lhs);
 			printf("  neg %%rax\n");
 			return;
+		default:
+			break;
 		}
 
 		gen_expr(node.rhs);
@@ -247,13 +306,25 @@ public class Main {
 			printf("  cqo\n");
 			printf("  idiv %%rdi\n");
 			return;
-		case ND_NUM:
-			printf("  mov $%d, %%rax\n", node.val);
-			return;
-		case ND_NEG:
-			gen_expr(node.lhs);
-			printf("  neg %%rax\n");
-			return;
+		  case ND_EQ:
+		  case ND_NE:
+		  case ND_LT:
+		  case ND_LE:
+		    printf("  cmp %%rdi, %%rax\n");
+
+		    if (node.kind == NodeKind.ND_EQ)
+		      printf("  sete %%al\n");
+		    else if (node.kind == NodeKind.ND_NE)
+		      printf("  setne %%al\n");
+		    else if (node.kind == NodeKind.ND_LT)
+		      printf("  setl %%al\n");
+		    else if (node.kind == NodeKind.ND_LE)
+		      printf("  setle %%al\n");
+
+		    printf("  movzb %%al, %%rax\n");
+		    return;
+		default:
+			break;
 		}
 
 		error("invalid expression");
