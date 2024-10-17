@@ -8,16 +8,14 @@ public class Main {
 			return;
 		}
 
-		String c_code = args[0];
+		String c_code = args[0];		
 		
-		// Step 1 - Tokenize
-		Token token = Token.tokenize(c_code);
+		Token tok = Token.tokenize(c_code);
 		
-		// Step 2 - Parse (generate AST)
-		Node node = Node.parse(token);
-
-		// Step 3 - Traverse the AST to emit assembly 
-		Assembly.emit(node);		
+		Function prog = Node.parse(tok);
+		
+		// Traverse the AST to emit assembly. 
+		Assembly.emit(prog);		
 	}
 
 }

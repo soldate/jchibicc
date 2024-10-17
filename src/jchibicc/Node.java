@@ -1,5 +1,8 @@
 package jchibicc;
 
+import java.util.ArrayList;
+import java.util.List;
+
 // Node (objs) + Parser (static methods)
 class Node {
 
@@ -23,21 +26,21 @@ class Node {
 		NUM,       // Integer
 	}
 
-	Kind kind;   // Node kind
-	Node next;   // Next node
-	Node lhs;    // Left-hand side
-	Node rhs;    // Right-hand side
-	String name; // Used if kind == ND_VAR
-	int val;     // Used if kind == ND_NUM
+	Kind kind; // Node kind
+	Node next; // Next node
+	Node lhs;  // Left-hand side
+	Node rhs;  // Right-hand side
+	Obj var;   // Used if kind == ND_VAR
+	int val;   // Used if kind == ND_NUM
 
 	Node(int val) {
 		this.kind = Kind.NUM;
 		this.val = val;
 	}
 	
-	Node(String name) {
+	Node(Obj var) {
 		this.kind = Kind.VAR;
-		this.name = name;
+		this.var = var;
 	}	
 	
 	Node(Kind kind, Node lhs, Node rhs) {
@@ -50,6 +53,16 @@ class Node {
 	// Parser code (static)
 	// ==================
 
+	private static Obj locals;
+	
+	// Find a local variable by name.
+	private static Obj find_var(String name) {
+		if (locals == null) return null;
+		for (Obj tmp = locals; tmp != null; tmp = tmp.next) 
+			if (tmp.name.equals(name)) return tmp;		
+		return null;
+	}
+	
 	// if true, move to the next token
 	private static boolean tok_equals(String s) {
 		if (tok.equals(s)) {
@@ -185,7 +198,12 @@ class Node {
 		}
 		
 		if (tok.kind == Token.Kind.IDENT) {
-			Node node = new Node(tok.str);
+			Obj var = find_var(tok.str);
+			if (var == null) {
+				var = new Obj(tok.str, locals);
+				locals = var;
+			}
+			Node node = new Node(var);
 			tok = tok.next;
 			return node;
 		}
@@ -202,7 +220,7 @@ class Node {
 
 	private static Token tok;
 	
-	public static Node parse(Token token) {		  
+	public static Function parse(Token token) {		  
 		  Node head = new Node(0);
 		  Node cur = head;
 		  tok = token;
@@ -211,7 +229,10 @@ class Node {
 			  cur = cur.next = stmt();
 		  }
 		  
-		  return head.next;
+		  Function prog = new Function();
+		  prog.body = head.next;
+		  prog.locals = locals;
+		  return prog;
 	}
 
 }

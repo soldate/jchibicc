@@ -16,13 +16,18 @@ class Assembly {
 		printf("  pop %s\n", s);
 		depth--;
 	}
+	
+	// Round up `n` to the nearest multiple of `align`. For instance,
+	// align_to(5, 8) returns 8 and align_to(11, 8) returns 16.
+	private static int align_to(int n, int align) {
+	  return (n + align - 1) / align * align;
+	}	
 
 	// Compute the absolute address of a given node.
 	// It's an error if a given node does not reside in memory.
 	private static void gen_addr(Node node) {
 	  if (node.kind == Node.Kind.VAR) {
-	    int offset = (node.name.charAt(0) - 'a' + 1) * 8;
-	    printf("  lea %d(%%rbp), %%rax\n", -offset);
+	    printf("  lea %d(%%rbp), %%rax\n", node.var.offset);
 	    return;
 	  }
 
@@ -106,16 +111,28 @@ class Assembly {
 	
 	private static int depth;
 
-	public static void emit(Node node) {
+	// Assign offsets to local variables.
+	private static void assign_lvar_offsets(Function prog) {
+	  int offset = 0;
+	  for (Obj var = prog.locals; var != null; var = var.next) {
+	    offset += 8;
+	    var.offset = -offset;
+	  }
+	  prog.stack_size = align_to(offset, 16);
+	}
+	
+	public static void emit(Function prog) {
+		assign_lvar_offsets(prog);
+		
 		printf("  .globl main\n");
 		printf("main:\n");
 		
 		// Prologue
 		printf("  push %%rbp\n");
 		printf("  mov %%rsp, %%rbp\n");
-		printf("  sub $208, %%rsp\n");
+		printf("  sub $%d, %%rsp\n", prog.stack_size);
 		  
-		for (Node n = node; n != null; n = n.next) {
+		for (Node n = prog.body; n != null; n = n.next) {
 			gen_stmt(n);
 			assert (depth == 0);
 		}
