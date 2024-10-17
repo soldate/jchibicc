@@ -3,25 +3,52 @@ package jchibicc;
 // Code Generator
 class Assembly {
 
+	private static void printf(String s, Object... o) {
+		S.printf(s, o);
+	}
+	
 	private static void push() {
-		S.printf("  push %%rax\n");
+		printf("  push %%rax\n");
 		depth++;
 	}
 
 	private static void pop(String s) {
-		S.printf("  pop %s\n", s);
+		printf("  pop %s\n", s);
 		depth--;
 	}
 
+	// Compute the absolute address of a given node.
+	// It's an error if a given node does not reside in memory.
+	private static void gen_addr(Node node) {
+	  if (node.kind == Node.Kind.VAR) {
+	    int offset = (node.name.charAt(0) - 'a' + 1) * 8;
+	    printf("  lea %d(%%rbp), %%rax\n", -offset);
+	    return;
+	  }
+
+	  S.error("not an lvalue");
+	}
+	
 	private static void gen_expr(Node node) {
 		switch (node.kind) {
 		case NUM:
-			S.printf("  mov $%d, %%rax\n", node.val);
+			printf("  mov $%d, %%rax\n", node.val);
 			return;
 		case NEG:
 			gen_expr(node.lhs);
-			S.printf("  neg %%rax\n");
+			printf("  neg %%rax\n");
 			return;
+		case VAR:
+			gen_addr(node);
+			printf("  mov (%%rax), %%rax\n");
+			return;
+		case ASSIGN:
+			gen_addr(node.lhs);
+			push();
+			gen_expr(node.rhs);
+			pop("%rdi");
+			printf("  mov %%rax, (%%rdi)\n");
+			return;	
 		default:
 			break;
 		}
@@ -33,34 +60,34 @@ class Assembly {
 
 		switch (node.kind) {
 		case ADD:
-			S.printf("  add %%rdi, %%rax\n");
+			printf("  add %%rdi, %%rax\n");
 			return;
 		case SUB:
-			S.printf("  sub %%rdi, %%rax\n");
+			printf("  sub %%rdi, %%rax\n");
 			return;
 		case MUL:
-			S.printf("  imul %%rdi, %%rax\n");
+			printf("  imul %%rdi, %%rax\n");
 			return;
 		case DIV:
-			S.printf("  cqo\n");
-			S.printf("  idiv %%rdi\n");
+			printf("  cqo\n");
+			printf("  idiv %%rdi\n");
 			return;
 		  case EQ:
 		  case NE:
 		  case LT:
 		  case LE:
-		    S.printf("  cmp %%rdi, %%rax\n");
+		    printf("  cmp %%rdi, %%rax\n");
 
 		    if (node.kind == Node.Kind.EQ)
-		      S.printf("  sete %%al\n");
+		      printf("  sete %%al\n");
 		    else if (node.kind == Node.Kind.NE)
-		      S.printf("  setne %%al\n");
+		      printf("  setne %%al\n");
 		    else if (node.kind == Node.Kind.LT)
-		      S.printf("  setl %%al\n");
+		      printf("  setl %%al\n");
 		    else if (node.kind == Node.Kind.LE)
-		      S.printf("  setle %%al\n");
+		      printf("  setle %%al\n");
 
-		    S.printf("  movzb %%al, %%rax\n");
+		    printf("  movzb %%al, %%rax\n");
 		    return;
 		default:
 			break;
@@ -80,16 +107,21 @@ class Assembly {
 	private static int depth;
 
 	public static void emit(Node node) {
-		depth = 0; // reset code gen control
+		printf("  .globl main\n");
+		printf("main:\n");
 		
-		S.printf("  .globl main\n");
-		S.printf("main:\n");
-		
+		// Prologue
+		printf("  push %%rbp\n");
+		printf("  mov %%rsp, %%rbp\n");
+		printf("  sub $208, %%rsp\n");
+		  
 		for (Node n = node; n != null; n = n.next) {
 			gen_stmt(n);
 			assert (depth == 0);
 		}
 		  
-		S.printf("  ret\n");		
+		printf("  mov %%rbp, %%rsp\n");
+		printf("  pop %%rbp\n");		
+		printf("  ret\n");		
 	}
 }

@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 class Token {
 	
 	enum Kind {
+		IDENT, // Identifiers
 		PUNCT, // Punctuators
 		NUM,   // Numeric literals
 		EOF,   // End-of-file markers
@@ -27,7 +28,13 @@ class Token {
 		if (S.isNumeric(value)) {
 			kind = Kind.NUM;
 			val = Integer.parseInt(value);
-		} else kind = Kind.PUNCT;
+		} else {			
+			if (S.isValidCVariableName(value)) {
+				kind = Kind.IDENT;
+			} else if (S.isValidCPunctuator(value)) {
+				kind = Kind.PUNCT;	
+			}
+		}
 	}
 	
 	// just for EOF token

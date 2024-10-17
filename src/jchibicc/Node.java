@@ -1,7 +1,5 @@
 package jchibicc;
 
-import java.util.List;
-
 // Node (objs) + Parser (static methods)
 class Node {
 
@@ -19,24 +17,30 @@ class Node {
 		NE,        // !=
 		LT,        // <
 		LE,        // <=
+		ASSIGN,    // =
 		EXPR_STMT, // Expression statement
+		VAR,       // Variable
 		NUM,       // Integer
 	}
 
-	Kind kind; // Node kind
-	Node next; // Next node
-	Node lhs;  // Left-hand side
-	Node rhs;  // Right-hand side
-	int val;   // Used if kind == ND_NUM
+	Kind kind;   // Node kind
+	Node next;   // Next node
+	Node lhs;    // Left-hand side
+	Node rhs;    // Right-hand side
+	String name; // Used if kind == ND_VAR
+	int val;     // Used if kind == ND_NUM
 
 	Node(int val) {
-		super();
 		this.kind = Kind.NUM;
 		this.val = val;
 	}
-
+	
+	Node(String name) {
+		this.kind = Kind.VAR;
+		this.name = name;
+	}	
+	
 	Node(Kind kind, Node lhs, Node rhs) {
-		super();
 		this.kind = kind;
 		this.lhs = lhs;
 		this.rhs = rhs;
@@ -68,8 +72,16 @@ class Node {
 
 	// expr = equality
 	private static Node expr() {
-		return equality();
+		return assign();
 	}
+	
+	// assign = equality ("=" assign)?
+	private static Node assign() {
+	  Node node = equality();
+	  if (tok_equals("="))
+	    node = new Node(Node.Kind.ASSIGN, node, assign());
+	  return node;
+	}	
 
 	// equality = relational ("==" relational | "!=" relational)*
 	private static Node equality() {
@@ -166,10 +178,15 @@ class Node {
 
 	// primary = "(" expr ")" | num
 	private static Node primary() {
-
 		if (tok_equals("(")) {
 			Node node = expr();
 			if (!tok_equals(")")) S.error("expected ')'");
+			return node;
+		}
+		
+		if (tok.kind == Token.Kind.IDENT) {
+			Node node = new Node(tok.str);
+			tok = tok.next;
 			return node;
 		}
 
