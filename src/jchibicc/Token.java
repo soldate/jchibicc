@@ -8,38 +8,44 @@ import java.util.regex.Pattern;
 class Token {
 	
 	enum Kind {
-		TK_PUNCT, // Punctuators
-		TK_NUM, // Numeric literals
-		TK_EOF, // End-of-file markers
+		PUNCT, // Punctuators
+		NUM,   // Numeric literals
+		EOF,   // End-of-file markers
 	}
 	
 	Kind kind;
-	String value;
-	int loc; // Token location
-	int len; // Token length
-	int val; // If kind is TK_NUM, its value
+	Token next; // Next token
+	String str; // token string
+	int loc;    // Token location
+	int len;    // Token length
+	int val;    // If kind is TK_NUM, its value
 
 	Token(String value, int start, int end) {
-		this.value = value;
+		this.str = value;
 		this.loc = start;
 		this.len = end - start;
 		if (S.isNumeric(value)) {
-			kind = Kind.TK_NUM;
+			kind = Kind.NUM;
 			val = Integer.parseInt(value);
-		} else kind = Kind.TK_PUNCT;
+		} else kind = Kind.PUNCT;
 	}
 	
 	// just for EOF token
 	Token(Kind kind) {
-		this.value = "";
+		this.str = "";
 		this.kind = kind;
 	}	
 
 	boolean equals(String s) {
-		return this.value.equals(s);
+		return this.str.equals(s);
 	}
 
-	public static List<Token> tokenize(String code) {
+	@Override
+	public String toString() {
+		return str;
+	}
+
+	public static Token tokenize(String code) {
 		String regex = "\\w+|[{}();]|==|<=|>=|!=|\\+\\+|--|&&|\\|\\||[+\\-*/<>=!]";
 
 		Pattern pattern = Pattern.compile(regex);
@@ -47,13 +53,24 @@ class Token {
 
 		List<Token> tokens = new ArrayList<>();
 
-		while (matcher.find()) {
+		Token last = null;
+		while (matcher.find()) {			
 			String token = matcher.group();
 			int start = matcher.start();
 			int end = matcher.end();
-			tokens.add(new Token(token, start, end));
+			
+			// each token points to the next
+			Token newToken = new Token(token, start, end);
+			if (last != null) last.next = newToken;
+			tokens.add(newToken);
+			last = newToken;
 		}
-
-		return tokens;
+		
+		// eof token
+		Token newToken = new Token(Token.Kind.EOF);
+		if (last != null) last.next = newToken;		
+		tokens.add(newToken);
+		
+		return tokens.get(0);
 	}
 }

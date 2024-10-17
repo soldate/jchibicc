@@ -1,7 +1,5 @@
 package jchibicc;
 
-import java.util.List;
-
 public class Main {
 
 	public static void main(String[] args) {
@@ -13,10 +11,10 @@ public class Main {
 		String c_code = args[0];
 		
 		// Step 1 - Tokenize
-		List<Token> tokens = Token.tokenize(c_code);
+		Token token = Token.tokenize(c_code);
 		
 		// Step 2 - Parse (generate AST)
-		Node node = Node.parse(tokens);
+		Node node = Node.parse(token);
 
 		// Step 3 - Traverse the AST to emit assembly 
 		Assembly.emit(node);		

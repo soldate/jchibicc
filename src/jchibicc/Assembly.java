@@ -15,10 +15,10 @@ class Assembly {
 
 	private static void gen_expr(Node node) {
 		switch (node.kind) {
-		case ND_NUM:
+		case NUM:
 			S.printf("  mov $%d, %%rax\n", node.val);
 			return;
-		case ND_NEG:
+		case NEG:
 			gen_expr(node.lhs);
 			S.printf("  neg %%rax\n");
 			return;
@@ -32,32 +32,32 @@ class Assembly {
 		pop("%rdi");
 
 		switch (node.kind) {
-		case ND_ADD:
+		case ADD:
 			S.printf("  add %%rdi, %%rax\n");
 			return;
-		case ND_SUB:
+		case SUB:
 			S.printf("  sub %%rdi, %%rax\n");
 			return;
-		case ND_MUL:
+		case MUL:
 			S.printf("  imul %%rdi, %%rax\n");
 			return;
-		case ND_DIV:
+		case DIV:
 			S.printf("  cqo\n");
 			S.printf("  idiv %%rdi\n");
 			return;
-		  case ND_EQ:
-		  case ND_NE:
-		  case ND_LT:
-		  case ND_LE:
+		  case EQ:
+		  case NE:
+		  case LT:
+		  case LE:
 		    S.printf("  cmp %%rdi, %%rax\n");
 
-		    if (node.kind == Node.Kind.ND_EQ)
+		    if (node.kind == Node.Kind.EQ)
 		      S.printf("  sete %%al\n");
-		    else if (node.kind == Node.Kind.ND_NE)
+		    else if (node.kind == Node.Kind.NE)
 		      S.printf("  setne %%al\n");
-		    else if (node.kind == Node.Kind.ND_LT)
+		    else if (node.kind == Node.Kind.LT)
 		      S.printf("  setl %%al\n");
-		    else if (node.kind == Node.Kind.ND_LE)
+		    else if (node.kind == Node.Kind.LE)
 		      S.printf("  setle %%al\n");
 
 		    S.printf("  movzb %%al, %%rax\n");
@@ -69,6 +69,14 @@ class Assembly {
 		S.error("invalid expression");
 	}
 	
+	private static void gen_stmt(Node node) {
+		if (node.kind == Node.Kind.EXPR_STMT) {
+			gen_expr(node.lhs);
+			return;
+		}
+		S.error("invalid statement");
+	}
+	
 	private static int depth;
 
 	public static void emit(Node node) {
@@ -76,8 +84,12 @@ class Assembly {
 		
 		S.printf("  .globl main\n");
 		S.printf("main:\n");
-		gen_expr(node);
-		S.printf("  ret\n");
-		assert (depth == 0);		
+		
+		for (Node n = node; n != null; n = n.next) {
+			gen_stmt(n);
+			assert (depth == 0);
+		}
+		  
+		S.printf("  ret\n");		
 	}
 }
