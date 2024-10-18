@@ -27,10 +27,11 @@ class Node {
 		NUM,       // Integer
 	}
 
-	Kind kind; // Node kind
-	Node next; // Next node
-	Node lhs;  // Left-hand side
-	Node rhs;  // Right-hand side
+	Kind kind;   // Node kind
+	Node next;   // Next node
+	Token token; // Representative token
+	Node lhs;    // Left-hand side
+	Node rhs;    // Right-hand side
 	
 	// "if" or "for" statement
     Node cond;
@@ -48,21 +49,25 @@ class Node {
 	Node(int val) {
 		this.kind = Kind.NUM;
 		this.val = val;
+		this.token = tok;
 	}
 
 	Node(Kind kind) {
 		this.kind = kind;
+		this.token = tok;
 	}
 
 	Node(Obj var) {
 		this.kind = Kind.VAR;
 		this.var = var;
+		this.token = tok;
 	}
 
 	Node(Kind kind, Node lhs, Node rhs) {
 		this.kind = kind;
 		this.lhs = lhs;
 		this.rhs = rhs;
+		this.token = tok;
 	}
 
 	// ==================

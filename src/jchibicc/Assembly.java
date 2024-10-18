@@ -31,7 +31,7 @@ class Assembly {
 	    return;
 	  }
 
-	  S.error("not an lvalue");
+	  S.error("%s not an lvalue", node.token.toString());
 	}
 	
 	private static void gen_expr(Node node) {
@@ -98,7 +98,7 @@ class Assembly {
 			break;
 		}
 
-		S.error("invalid expression");
+		S.error("%s invalid expression", node.token.toString());
 	}
 	
 	private static void gen_stmt(Node node) {
@@ -144,7 +144,7 @@ class Assembly {
 		default:
 			break;
 		}
-		S.error("invalid statement");
+		S.error("%s invalid statement", node.token.toString());
 	}
 	
 	private static int depth;
