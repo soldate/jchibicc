@@ -19,6 +19,7 @@ class Node {
 		LE,        // <=
 		ASSIGN,    // =
 		RETURN,    // "return"
+		BLOCK,     // { ... }
 		EXPR_STMT, // Expression statement
 		VAR,       // Variable
 		NUM,       // Integer
@@ -28,6 +29,7 @@ class Node {
 	Node next; // Next node
 	Node lhs;  // Left-hand side
 	Node rhs;  // Right-hand side
+	Node body; // Block	  
 	Obj var;   // Used if kind == ND_VAR
 	int val;   // Used if kind == ND_NUM
 
@@ -35,6 +37,10 @@ class Node {
 		this.kind = Kind.NUM;
 		this.val = val;
 	}
+	
+	Node(Kind kind) {
+		this.kind = kind;
+	}	
 	
 	Node(Obj var) {
 		this.kind = Kind.VAR;
@@ -53,6 +59,12 @@ class Node {
 
 	private static Obj locals;
 	
+	// Ensure that the current token is `op`.
+	private static void skip(String op) {
+	  if (!tok_equals(op))
+	    S.error("expected '%s'", op);
+	}	
+	
 	// Find a local variable by name.
 	private static Obj find_var(String name) {
 		if (locals == null) return null;
@@ -69,20 +81,37 @@ class Node {
 		} else return false;
 	}
 	
-	// stmt = "return" expr ";" | expr-stmt
+	// stmt = "return" expr ";" | "{" compound-stmt | expr-stmt
 	private static Node stmt() {
 		if (tok_equals("return")) {
 			Node node = new Node(Node.Kind.RETURN, expr(), null);
-			if (!tok_equals(";")) S.error("expected ';'");
+			skip(";");
 			return node;
 		}
+		
+		if (tok_equals("{"))
+		    return compound_stmt();
+	
 		return expr_stmt();
 	}
 
+	// compound-stmt = stmt* "}"
+	static Node compound_stmt() {
+	  Node head = new Node(0);
+	  Node cur = head;
+
+	  while (!tok_equals("}"))
+	    cur = cur.next = stmt();
+
+	  Node node = new Node(Node.Kind.BLOCK);
+	  node.body = head.next;
+	  return node;
+	}	
+	
 	// expr-stmt = expr ";"
 	private static Node expr_stmt() {
 	  Node node = new Node(Node.Kind.EXPR_STMT, expr(), null);
-	  if (!tok_equals(";")) S.error("expected ';'");
+	  skip(";");
 	  return node;
 	}	
 
@@ -196,7 +225,7 @@ class Node {
 	private static Node primary() {
 		if (tok_equals("(")) {
 			Node node = expr();
-			if (!tok_equals(")")) S.error("expected ')'");
+			skip(")");
 			return node;
 		}
 		
@@ -223,17 +252,11 @@ class Node {
 
 	private static Token tok;
 	
-	public static Function parse(Token token) {		  
-		  Node head = new Node(0);
-		  Node cur = head;
+	public static Function parse(Token token) {
 		  tok = token;
-		  
-		  while (tok.kind != Token.Kind.EOF) {
-			  cur = cur.next = stmt();
-		  }
-		  
+		  skip("{");		  
 		  Function prog = new Function();
-		  prog.body = head.next;
+		  prog.body = compound_stmt();
 		  prog.locals = locals;
 		  return prog;
 	}

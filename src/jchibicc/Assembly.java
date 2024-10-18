@@ -103,6 +103,9 @@ class Assembly {
 	
 	private static void gen_stmt(Node node) {
 		switch (node.kind) {
+		case BLOCK:
+			for (Node n = node.body; n != null; n = n.next) gen_stmt(n);
+			return;
 		case RETURN:
 			gen_expr(node.lhs);
 			printf("  jmp .L.return\n");
@@ -110,6 +113,8 @@ class Assembly {
 		case EXPR_STMT:
 			gen_expr(node.lhs);
 			return;
+		default:
+			break;
 		}
 		S.error("invalid statement");
 	}
