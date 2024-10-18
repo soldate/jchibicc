@@ -19,6 +19,7 @@ class Node {
 		LE,        // <=
 		ASSIGN,    // =
 		RETURN,    // "return"
+		IF,        // "if"
 		BLOCK,     // { ... }
 		EXPR_STMT, // Expression statement
 		VAR,       // Variable
@@ -29,7 +30,15 @@ class Node {
 	Node next; // Next node
 	Node lhs;  // Left-hand side
 	Node rhs;  // Right-hand side
-	Node body; // Block	  
+	
+	// "if" statement
+    Node cond;
+	Node then;
+	Node els;
+	
+	// Block
+	Node body; 
+	
 	Obj var;   // Used if kind == ND_VAR
 	int val;   // Used if kind == ND_NUM
 
@@ -85,6 +94,16 @@ class Node {
 		if (tok_equals("return")) {
 			Node node = new Node(Node.Kind.RETURN, expr(), null);
 			skip(";");
+			return node;
+		}
+
+		if (tok_equals("if")) {
+			Node node = new Node(Node.Kind.IF);
+			skip("(");
+			node.cond = expr();
+			skip(")");
+			node.then = stmt();
+			if (tok_equals("else")) node.els = stmt();
 			return node;
 		}
 

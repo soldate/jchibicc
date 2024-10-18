@@ -103,8 +103,21 @@ class Assembly {
 	
 	private static void gen_stmt(Node node) {
 		switch (node.kind) {
+		case IF: {
+			int c = count();
+			gen_expr(node.cond);
+			printf("  cmp $0, %%rax\n");
+			printf("  je  .L.else.%d\n", c);
+			gen_stmt(node.then);
+			printf("  jmp .L.end.%d\n", c);
+			printf(".L.else.%d:\n", c);
+			if (node.els != null) gen_stmt(node.els);
+			printf(".L.end.%d:\n", c);
+			return;
+		}
 		case BLOCK:
-			for (Node n = node.body; n != null; n = n.next) gen_stmt(n);
+			for (Node n = node.body; n != null; n = n.next)
+				gen_stmt(n);
 			return;
 		case RETURN:
 			gen_expr(node.lhs);
@@ -120,6 +133,11 @@ class Assembly {
 	}
 	
 	private static int depth;
+
+	private static int i = 1;
+	private static int count() {
+		return i++;
+	}
 
 	// Assign offsets to local variables.
 	private static void assign_lvar_offsets(Function prog) {
