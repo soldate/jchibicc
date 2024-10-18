@@ -26,12 +26,18 @@ class Assembly {
 	// Compute the absolute address of a given node.
 	// It's an error if a given node does not reside in memory.
 	private static void gen_addr(Node node) {
-	  if (node.kind == Node.Kind.VAR) {
-	    printf("  lea %d(%%rbp), %%rax\n", node.var.offset);
-	    return;
-	  }
+		switch (node.kind) {
+		case VAR:
+			printf("  lea %d(%%rbp), %%rax\n", node.var.offset);
+			return;
+		case DEREF:
+			gen_expr(node.lhs);
+			return;
+		default:
+			break;
+		}
 
-	  S.error("%s not an lvalue", node.token.toString());
+		S.error("%s not an lvalue", node.token.toString());
 	}
 	
 	private static void gen_expr(Node node) {
@@ -46,6 +52,13 @@ class Assembly {
 		case VAR:
 			gen_addr(node);
 			printf("  mov (%%rax), %%rax\n");
+			return;
+		case DEREF:
+			gen_expr(node.lhs);
+			printf("  mov (%%rax), %%rax\n");
+			return;
+		case ADDR:
+			gen_addr(node.lhs);
 			return;
 		case ASSIGN:
 			gen_addr(node.lhs);
