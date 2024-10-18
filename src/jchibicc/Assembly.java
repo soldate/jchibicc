@@ -117,7 +117,7 @@ class Assembly {
 		}
 		case FOR: {
 			int c = count();
-			gen_stmt(node.init);
+			if (node.init != null) gen_stmt(node.init);
 			printf(".L.begin.%d:\n", c);
 			if (node.cond != null) {
 				gen_expr(node.cond);

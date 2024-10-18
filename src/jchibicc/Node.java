@@ -20,7 +20,7 @@ class Node {
 		ASSIGN,    // =
 		RETURN,    // "return"
 		IF,        // "if"
-		FOR,       // "for"
+		FOR,       // "for" or "while"
 		BLOCK,     // { ... }
 		EXPR_STMT, // Expression statement
 		VAR,       // Variable
@@ -95,6 +95,7 @@ class Node {
 	// stmt = "return" expr ";" 
 	//	| "if" "(" expr ")" stmt ("else" stmt)?
 	//  | "for" "(" expr-stmt expr? ";" expr? ")" stmt
+	//  | "while" "(" expr ")" stmt	
 	//  | "{" compound-stmt
 	//  | expr-stmt
 	private static Node stmt() {
@@ -134,6 +135,15 @@ class Node {
 				skip(")");
 			}			
 
+			node.then = stmt();
+			return node;
+		}
+
+		if (tok_equals("while")) {
+			Node node = new Node(Node.Kind.FOR);
+			skip("(");
+			node.cond = expr();
+			skip(")");
 			node.then = stmt();
 			return node;
 		}
