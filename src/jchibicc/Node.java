@@ -20,6 +20,7 @@ class Node {
 		ASSIGN,    // =
 		RETURN,    // "return"
 		IF,        // "if"
+		FOR,       // "for"
 		BLOCK,     // { ... }
 		EXPR_STMT, // Expression statement
 		VAR,       // Variable
@@ -31,10 +32,12 @@ class Node {
 	Node lhs;  // Left-hand side
 	Node rhs;  // Right-hand side
 	
-	// "if" statement
+	// "if" or "for" statement
     Node cond;
 	Node then;
 	Node els;
+	Node init;
+	Node inc;	
 	
 	// Block
 	Node body; 
@@ -89,7 +92,11 @@ class Node {
 		} else return false;
 	}
 
-	// stmt = "return" expr ";" | "{" compound-stmt | expr-stmt
+	// stmt = "return" expr ";" 
+	//	| "if" "(" expr ")" stmt ("else" stmt)?
+	//  | "for" "(" expr-stmt expr? ";" expr? ")" stmt
+	//  | "{" compound-stmt
+	//  | expr-stmt
 	private static Node stmt() {
 		if (tok_equals("return")) {
 			Node node = new Node(Node.Kind.RETURN, expr(), null);
@@ -99,11 +106,35 @@ class Node {
 
 		if (tok_equals("if")) {
 			Node node = new Node(Node.Kind.IF);
-			skip("(");
+			skip("(");			
+			
 			node.cond = expr();
+			
 			skip(")");
+			
 			node.then = stmt();
+			
 			if (tok_equals("else")) node.els = stmt();
+			return node;
+		}
+
+		if (tok_equals("for")) {
+			Node node = new Node(Node.Kind.FOR);
+			skip("(");
+
+			node.init = expr_stmt();
+
+			if (!tok_equals(";")) {
+				node.cond = expr();
+				skip(";");
+			}			
+
+			if (!tok_equals(")")) {
+				node.inc = expr();
+				skip(")");
+			}			
+
+			node.then = stmt();
 			return node;
 		}
 
