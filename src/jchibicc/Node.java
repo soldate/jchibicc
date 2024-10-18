@@ -1,8 +1,5 @@
 package jchibicc;
 
-import java.util.ArrayList;
-import java.util.List;
-
 // Node (objs) + Parser (static methods)
 class Node {
 
@@ -21,6 +18,7 @@ class Node {
 		LT,        // <
 		LE,        // <=
 		ASSIGN,    // =
+		RETURN,    // "return"
 		EXPR_STMT, // Expression statement
 		VAR,       // Variable
 		NUM,       // Integer
@@ -71,9 +69,14 @@ class Node {
 		} else return false;
 	}
 	
-	// stmt = expr-stmt
+	// stmt = "return" expr ";" | expr-stmt
 	private static Node stmt() {
-	  return expr_stmt();
+		if (tok_equals("return")) {
+			Node node = new Node(Node.Kind.RETURN, expr(), null);
+			if (!tok_equals(";")) S.error("expected ';'");
+			return node;
+		}
+		return expr_stmt();
 	}
 
 	// expr-stmt = expr ";"

@@ -102,7 +102,12 @@ class Assembly {
 	}
 	
 	private static void gen_stmt(Node node) {
-		if (node.kind == Node.Kind.EXPR_STMT) {
+		switch (node.kind) {
+		case RETURN:
+			gen_expr(node.lhs);
+			printf("  jmp .L.return\n");
+			return;
+		case EXPR_STMT:
 			gen_expr(node.lhs);
 			return;
 		}
@@ -136,7 +141,8 @@ class Assembly {
 			gen_stmt(n);
 			assert (depth == 0);
 		}
-		  
+		
+		printf(".L.return:\n");  
 		printf("  mov %%rbp, %%rsp\n");
 		printf("  pop %%rbp\n");		
 		printf("  ret\n");		

@@ -8,10 +8,11 @@ import java.util.regex.Pattern;
 class Token {
 	
 	enum Kind {
-		IDENT, // Identifiers
-		PUNCT, // Punctuators
-		NUM,   // Numeric literals
-		EOF,   // End-of-file markers
+		IDENT,   // Identifiers
+		PUNCT,   // Punctuators
+		KEYWORD, // Keywords
+		NUM,     // Numeric literals
+		EOF,     // End-of-file markers
 	}
 	
 	Kind kind;
