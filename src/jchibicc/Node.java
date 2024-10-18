@@ -37,16 +37,16 @@ class Node {
 		this.kind = Kind.NUM;
 		this.val = val;
 	}
-	
+
 	Node(Kind kind) {
 		this.kind = kind;
-	}	
-	
+	}
+
 	Node(Obj var) {
 		this.kind = Kind.VAR;
 		this.var = var;
-	}	
-	
+	}
+
 	Node(Kind kind, Node lhs, Node rhs) {
 		this.kind = kind;
 		this.lhs = lhs;
@@ -58,21 +58,20 @@ class Node {
 	// ==================
 
 	private static Obj locals;
-	
+
 	// Ensure that the current token is `op`.
 	private static void skip(String op) {
-	  if (!tok_equals(op))
-	    S.error("expected '%s'", op);
-	}	
-	
+		if (!tok_equals(op)) S.error("expected '%s'", op);
+	}
+
 	// Find a local variable by name.
 	private static Obj find_var(String name) {
 		if (locals == null) return null;
-		for (Obj tmp = locals; tmp != null; tmp = tmp.next) 
-			if (tmp.name.equals(name)) return tmp;		
+		for (Obj tmp = locals; tmp != null; tmp = tmp.next)
+			if (tmp.name.equals(name)) return tmp;
 		return null;
 	}
-	
+
 	// if true, move to the next token
 	private static boolean tok_equals(String s) {
 		if (tok.equals(s)) {
@@ -80,7 +79,7 @@ class Node {
 			return true;
 		} else return false;
 	}
-	
+
 	// stmt = "return" expr ";" | "{" compound-stmt | expr-stmt
 	private static Node stmt() {
 		if (tok_equals("return")) {
@@ -88,45 +87,46 @@ class Node {
 			skip(";");
 			return node;
 		}
-		
-		if (tok_equals("{"))
-		    return compound_stmt();
-	
+
+		if (tok_equals("{")) return compound_stmt();
+
 		return expr_stmt();
 	}
 
 	// compound-stmt = stmt* "}"
-	static Node compound_stmt() {
-	  Node head = new Node(0);
-	  Node cur = head;
+	private static Node compound_stmt() {
+		Node head = new Node(0);
+		Node cur = head;
 
-	  while (!tok_equals("}"))
-	    cur = cur.next = stmt();
+		while (!tok_equals("}"))
+			cur = cur.next = stmt();
 
-	  Node node = new Node(Node.Kind.BLOCK);
-	  node.body = head.next;
-	  return node;
-	}	
-	
+		Node node = new Node(Node.Kind.BLOCK);
+		node.body = head.next;
+		return node;
+	}
+
 	// expr-stmt = expr ";"
 	private static Node expr_stmt() {
-	  Node node = new Node(Node.Kind.EXPR_STMT, expr(), null);
-	  skip(";");
-	  return node;
-	}	
+		if (tok_equals(";")) {
+			return new Node(Node.Kind.BLOCK);
+		}
+		Node node = new Node(Node.Kind.EXPR_STMT, expr(), null);
+		skip(";");
+		return node;
+	}
 
 	// expr = equality
 	private static Node expr() {
 		return assign();
 	}
-	
+
 	// assign = equality ("=" assign)?
 	private static Node assign() {
-	  Node node = equality();
-	  if (tok_equals("="))
-	    node = new Node(Node.Kind.ASSIGN, node, assign());
-	  return node;
-	}	
+		Node node = equality();
+		if (tok_equals("=")) node = new Node(Node.Kind.ASSIGN, node, assign());
+		return node;
+	}
 
 	// equality = relational ("==" relational | "!=" relational)*
 	private static Node equality() {
@@ -228,7 +228,7 @@ class Node {
 			skip(")");
 			return node;
 		}
-		
+
 		if (tok.kind == Token.Kind.IDENT) {
 			Obj var = find_var(tok.str);
 			if (var == null) {
@@ -251,14 +251,14 @@ class Node {
 	}
 
 	private static Token tok;
-	
+
 	public static Function parse(Token token) {
-		  tok = token;
-		  skip("{");		  
-		  Function prog = new Function();
-		  prog.body = compound_stmt();
-		  prog.locals = locals;
-		  return prog;
+		tok = token;
+		skip("{");
+		Function prog = new Function();
+		prog.body = compound_stmt();
+		prog.locals = locals;
+		return prog;
 	}
 
 }
