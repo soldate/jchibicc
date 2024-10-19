@@ -66,7 +66,11 @@ class Assembly {
 			gen_expr(node.rhs);
 			pop("%rdi");
 			printf("  mov %%rax, (%%rdi)\n");
-			return;	
+			return;
+		case FUNCALL:
+			printf("  mov $0, %%rax\n");
+			printf("  call %s\n", node.funcname);
+			return;
 		default:
 			break;
 		}

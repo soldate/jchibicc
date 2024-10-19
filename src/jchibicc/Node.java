@@ -40,6 +40,7 @@ class Node {
 		IF,        // "if"
 		FOR,       // "for" or "while"
 		BLOCK,     // { ... }
+		FUNCALL,   // Function call
 		EXPR_STMT, // Expression statement
 		VAR,       // Variable
 		NUM,       // Integer
@@ -62,6 +63,9 @@ class Node {
 	// Block
 	Node body; 
 	
+	// Function call
+	String funcname;	
+	
 	Obj var;   // Used if kind == Node.Kind.VAR
 	int val;   // Used if kind == Node.Kind.NUM
 
@@ -73,7 +77,7 @@ class Node {
 
 	Node(Kind kind) {
 		this.kind = kind;
-		this.token = tok;
+		this.token = tok;		
 	}
 
 	Node(Obj var) {
@@ -483,7 +487,8 @@ class Node {
 		return primary();
 	}
 
-	// primary = "(" expr ")" | num
+	// primary = "(" expr ")" | ident args? | num
+	// args = "(" ")"
 	private static Node primary() {
 		if (tok.equals("(")) {
 			tok = tok.next;
@@ -493,6 +498,16 @@ class Node {
 		}
 
 		if (tok.kind == Token.Kind.IDENT) {
+		    // Function call
+		    if (tok.next.equals("(")) {
+		      Node node = new Node(Node.Kind.FUNCALL);		      
+		      node.funcname = tok.str;
+		      tok = tok.next.next;
+		      skip(")");
+		      return node;
+		    }
+
+		    // Variable			
 			Obj var = find_var(tok.str);
 			if (var == null) {
 				var = new Obj(tok.str, locals);

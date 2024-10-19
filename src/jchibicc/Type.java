@@ -63,6 +63,9 @@ class Type {
 		case NUM:
 			node.ty = ty_int;
 			return;
+		case FUNCALL:
+		    node.ty = ty_int;
+		    return;			
 		case VAR:
 			node.ty = node.var.ty;
 			return;
