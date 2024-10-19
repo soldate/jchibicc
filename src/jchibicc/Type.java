@@ -6,9 +6,15 @@ class Type {
 	}
 
 	Kind kind;
+	
+	// Pointer
 	Type base;
+	
+	// Declaration
+	Token name;
 
-	Type() {}
+	Type() {
+	}
 
 	Type(Kind kind) {
 		this.kind = kind;
@@ -54,16 +60,19 @@ class Type {
 		case NE:
 		case LT:
 		case LE:
-		case VAR:
 		case NUM:
 			node.ty = ty_int;
+			return;
+		case VAR:
+			node.ty = node.var.ty;
 			return;
 		case ADDR:
 			node.ty = pointer_to(node.lhs.ty);
 			return;
 		case DEREF:
-			if (node.lhs.ty.kind == Kind.PTR) node.ty = node.lhs.ty.base;
-			else node.ty = ty_int;
+			if (node.lhs.ty.kind != Kind.PTR) 
+				S.error("%s invalid pointer dereference", node.token.toString());
+			node.ty = node.lhs.ty.base;
 			return;
 		default:
 			break;

@@ -17,7 +17,8 @@ class S {
 
 	static void error(String s, Object... o) {
 		printf(System.err, s, o);
-		System.exit(1);
+		throw new RuntimeException("ERRO");
+		// System.exit(1);
 	}
 
 	static void printf(String s, Object... o) {
@@ -28,6 +29,27 @@ class S {
 		out.printf(s, o);
 	}
 	
+	static boolean isValidCKeyword(String name) {
+        // Array of all C keywords
+        String[] cKeywords = {
+            "auto", "break", "case", "char", "const", "continue", "default", "do", "double", 
+            "else", "enum", "extern", "float", "for", "goto", "if", "inline", "int", "long", 
+            "register", "restrict", "return", "short", "signed", "sizeof", "static", "struct", 
+            "switch", "typedef", "union", "unsigned", "void", "volatile", "while", "_Alignas", 
+            "_Alignof", "_Atomic", "_Bool", "_Complex", "_Generic", "_Imaginary", "_Noreturn", 
+            "_Static_assert", "_Thread_local"
+        };
+
+        // Check if the given name matches any C keyword
+        for (String keyword : cKeywords) {
+            if (name.equals(keyword)) {
+                return true;  // It's a C keyword
+            }
+        }
+
+        return false;  // Not a C keyword
+    }	
+	
     static boolean isValidCVariableName(String name) {
         // Regex for valid C variable names: starts with a letter or underscore, followed by letters, numbers, or underscores
         String regex = "^[a-zA-Z_][a-zA-Z0-9_]*$";
@@ -37,22 +59,11 @@ class S {
             return false;
         }
 
-        // Check if the name is a C keyword (optional, you can expand this list)
-        String[] cKeywords = {
-            "auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else",
-            "enum", "extern", "float", "for", "goto", "if", "inline", "int", "long", "register",
-            "restrict", "return", "short", "signed", "sizeof", "static", "struct", "switch",
-            "typedef", "union", "unsigned", "void", "volatile", "while", "_Alignas", "_Alignof", 
-            "_Atomic", "_Bool", "_Complex", "_Generic", "_Imaginary", "_Noreturn", "_Static_assert", 
-            "_Thread_local"
-        };
-
-        for (String keyword : cKeywords) {
-            if (name.equals(keyword)) {
-                return false;  // It's a C keyword, not a valid variable name
-            }
+        // Check if the given name matches any C keyword
+        if (isValidCKeyword(name)) {
+        	return false;
         }
-
+        
         return true;  // Passed both checks, it's a valid variable name
     }	
     

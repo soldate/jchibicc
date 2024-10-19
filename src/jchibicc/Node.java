@@ -81,13 +81,19 @@ class Node {
 		this.var = var;
 		this.token = tok;
 	}
+	
+	Node(Kind kind, Node lhs) {
+		this.kind = kind;
+		this.lhs = lhs;
+		this.token = tok;
+	}	
 
 	Node(Kind kind, Node lhs, Node rhs) {
 		this.kind = kind;
 		this.lhs = lhs;
 		this.rhs = rhs;
 		this.token = tok;
-	}
+	}	
 	
 	Node(Kind kind, Node lhs, Node rhs, Token token) {
 		this.kind = kind;
@@ -96,6 +102,18 @@ class Node {
 		this.token = token;
 	}	
 
+	Node(Obj var, Token token) {
+		this.kind = Kind.VAR;
+		this.var = var;
+		this.token = token;
+	}
+	
+	@Override
+	public String toString() {
+		if (token != null) return token.toString();
+		else return super.toString();
+	}	
+	
 	// ==================
 	// Parser code (static)
 	// ==================
@@ -104,7 +122,8 @@ class Node {
 
 	// Ensure that the current token is `op`.
 	private static void skip(String op) {
-		if (!tok_equals(op)) S.error("expected '%s'", op);
+		if (!tok.equals(op)) S.error("expected '%s'", op);
+		else tok = tok.next;
 	}
 
 	// Find a local variable by name.
@@ -115,63 +134,112 @@ class Node {
 		return null;
 	}
 
-	// if true, move to the next token
-	private static boolean tok_equals(String s) {
+	private static boolean consume(String s) {
 		if (tok.equals(s)) {
 			tok = tok.next;
 			return true;
 		} else return false;
 	}
 
-	// stmt = "return" expr ";" 
-	//	| "if" "(" expr ")" stmt ("else" stmt)?
-	//  | "for" "(" expr-stmt expr? ";" expr? ")" stmt
-	//  | "while" "(" expr ")" stmt	
-	//  | "{" compound-stmt
-	//  | expr-stmt
+	// declspec = "int"
+	private static Type declspec() {
+		skip("int");
+		return Type.ty_int;
+	}
+
+	// declarator = "*"* ident
+	private static Type declarator(Type ty) {
+		while (consume("*"))
+			ty = Type.pointer_to(ty);
+
+		if (tok.kind != Token.Kind.IDENT) 
+			S.error("%s expected a variable name", tok.toString());
+
+		ty.name = tok;
+		tok = tok.next;
+		return ty;
+	}
+
+	// declaration = declspec (declarator ("=" expr)? ("," declarator ("="
+	// expr)?)*)? ";"
+	private static Node declaration() {
+		Type basety = declspec();
+
+		Node head = new Node(0);
+		Node cur = head;
+		int i = 0;
+
+		while (!tok.equals(";")) {
+			if (i++ > 0) skip(",");
+
+			Type ty = declarator(basety);
+			Obj var = new Obj(ty, locals);
+			locals = var;
+
+			if (!tok.equals("=")) continue;			
+
+			Node lhs = new Node(var, ty.name);
+			tok = tok.next;
+			Node rhs = assign();
+			Node node = new Node(Node.Kind.ASSIGN, lhs, rhs);
+			cur = cur.next = new Node(Node.Kind.EXPR_STMT, node);
+		}
+
+		Node node = new Node(Node.Kind.BLOCK);
+		node.body = head.next;
+		tok = tok.next;
+		return node;
+	}
+
+	// stmt = "return" expr ";"
+	// | "if" "(" expr ")" stmt ("else" stmt)?
+	// | "for" "(" expr-stmt expr? ";" expr? ")" stmt
+	// | "while" "(" expr ")" stmt
+	// | "{" compound-stmt
+	// | expr-stmt
 	private static Node stmt() {
-		if (tok_equals("return")) {
-			Node node = new Node(Node.Kind.RETURN, expr(), null);
+		if (tok.equals("return")) {			
+			Node node = new Node(Node.Kind.RETURN);			
+			tok = tok.next;
+			node.lhs = expr();
 			skip(";");
 			return node;
 		}
 
-		if (tok_equals("if")) {
+		if (tok.equals("if")) {
 			Node node = new Node(Node.Kind.IF);
-			skip("(");			
-			
-			node.cond = expr();
-			
-			skip(")");
-			
-			node.then = stmt();
-			
-			if (tok_equals("else")) node.els = stmt();
+			tok = tok.next;
+			skip("(");						
+			node.cond = expr();			
+			skip(")");			
+			node.then = stmt();			
+			if (tok.equals("else")) {
+				tok = tok.next;
+				node.els = stmt();
+			}
 			return node;
 		}
 
-		if (tok_equals("for")) {
+		if (tok.equals("for")) {
 			Node node = new Node(Node.Kind.FOR);
+			tok = tok.next;
 			skip("(");
 
 			node.init = expr_stmt();
 
-			if (!tok_equals(";")) {
-				node.cond = expr();
-				skip(";");
-			}			
+			if (!tok.equals(";")) node.cond = expr();				
+			skip(";");
 
-			if (!tok_equals(")")) {
-				node.inc = expr();
-				skip(")");
-			}			
+			if (!tok.equals(")")) node.inc = expr();				
+			skip(")");
 
 			node.then = stmt();
 			return node;
 		}
 
-		if (tok_equals("while")) {
+		if (tok.equals("while")) {
 			Node node = new Node(Node.Kind.FOR);
+			tok = tok.next;
 			skip("(");
 			node.cond = expr();
 			skip(")");
@@ -179,7 +247,10 @@ class Node {
 			return node;
 		}
 
-		if (tok_equals("{")) return compound_stmt();
+		if (tok.equals("{")) {
+			tok = tok.next;
+			return compound_stmt();
+		}
 
 		return expr_stmt();
 	}
@@ -189,22 +260,26 @@ class Node {
 		Node head = new Node(0);
 		Node cur = head;
 
-		while (!tok_equals("}")) {
-			cur = cur.next = stmt();
+		while (!tok.equals("}")) {
+			if (tok.equals("int")) cur = cur.next = declaration();
+			else cur = cur.next = stmt();
 			Type.add_type(cur);
 		}
 
 		Node node = new Node(Node.Kind.BLOCK);
 		node.body = head.next;
+		tok = tok.next;
 		return node;
 	}
 
 	// expr-stmt = expr ";"
 	private static Node expr_stmt() {
-		if (tok_equals(";")) {
-			return new Node(Node.Kind.BLOCK);
+		if (tok.equals(";")) {
+			Node node = new Node(Node.Kind.BLOCK);
+			tok = tok.next;
+			return node;
 		}
-		Node node = new Node(Node.Kind.EXPR_STMT, expr(), null);
+		Node node = new Node(Node.Kind.EXPR_STMT, expr());
 		skip(";");
 		return node;
 	}
@@ -216,8 +291,12 @@ class Node {
 
 	// assign = equality ("=" assign)?
 	private static Node assign() {
-		Node node = equality();
-		if (tok_equals("=")) node = new Node(Node.Kind.ASSIGN, node, assign());
+		Node node = equality();		
+		Token start = tok;
+		if (tok.equals("=")) {
+			tok = tok.next;
+			node = new Node(Node.Kind.ASSIGN, node, assign(), start);
+		}
 		return node;
 	}
 
@@ -228,12 +307,14 @@ class Node {
 		for (;;) {
 			Token start = tok;
 			
-			if (tok_equals("==")) {
+			if (tok.equals("==")) {
+				tok = tok.next;
 				node = new Node(Node.Kind.EQ, node, relational(), start);
 				continue;
 			}
 
-			if (tok_equals("!=")) {
+			if (tok.equals("!=")) {
+				tok = tok.next;
 				node = new Node(Node.Kind.NE, node, relational(), start);
 				continue;
 			}
@@ -249,22 +330,26 @@ class Node {
 		for (;;) {
 			Token start = tok;
 			
-			if (tok_equals("<")) {
+			if (tok.equals("<")) {
+				tok = tok.next;
 				node = new Node(Node.Kind.LT, node, add(), start);
 				continue;
 			}
 
-			if (tok_equals("<=")) {
+			if (tok.equals("<=")) {
+				tok = tok.next;
 				node = new Node(Node.Kind.LE, node, add(), start);
 				continue;
 			}
 
-			if (tok_equals(">")) {
+			if (tok.equals(">")) {
+				tok = tok.next;
 				node = new Node(Node.Kind.LT, add(), node, start);
 				continue;
 			}
 
-			if (tok_equals(">=")) {
+			if (tok.equals(">=")) {
+				tok = tok.next;
 				node = new Node(Node.Kind.LE, add(), node, start);
 				continue;
 			}
@@ -337,12 +422,14 @@ class Node {
 		for (;;) {
 			Token start = tok;
 			
-			if (tok_equals("+")) {
+			if (tok.equals("+")) {
+				tok = tok.next;
 				node = new_add(node, mul(), start);
 				continue;
 			}
 
-			if (tok_equals("-")) {
+			if (tok.equals("-")) {
+				tok = tok.next;
 				node = new_sub(node, mul(), start);
 				continue;
 			}
@@ -358,12 +445,14 @@ class Node {
 		for (;;) {
 			Token start = tok;
 			
-			if (tok_equals("*")) {
+			if (tok.equals("*")) {
+				tok = tok.next;
 				node = new Node(Node.Kind.MUL, node, unary(), start);
 				continue;
 			}
 
-			if (tok_equals("/")) {
+			if (tok.equals("/")) {
+				tok = tok.next;
 				node = new Node(Node.Kind.DIV, node, unary(), start);
 				continue;
 			}
@@ -375,16 +464,29 @@ class Node {
 	// unary = ("+" | "-" | "*" | "&") unary
 	//  | primary
 	private static Node unary() {
-		if (tok_equals("+")) return unary();
-		if (tok_equals("-")) return new Node(Node.Kind.NEG, unary(), null);
-		if (tok_equals("&")) return new Node(Node.Kind.ADDR, unary(), null);
-		if (tok_equals("*")) return new Node(Node.Kind.DEREF, unary(), null);
+		if (tok.equals("+")) {
+			tok = tok.next;
+			return unary();
+		}
+		if (tok.equals("-")) {
+			tok = tok.next;
+			return new Node(Node.Kind.NEG, unary());
+		}
+		if (tok.equals("&")) {
+			tok = tok.next;
+			return new Node(Node.Kind.ADDR, unary());
+		}
+		if (tok.equals("*")) {
+			tok = tok.next;
+			return new Node(Node.Kind.DEREF, unary());
+		}
 		return primary();
 	}
 
 	// primary = "(" expr ")" | num
 	private static Node primary() {
-		if (tok_equals("(")) {
+		if (tok.equals("(")) {
+			tok = tok.next;
 			Node node = expr();
 			skip(")");
 			return node;
@@ -407,7 +509,7 @@ class Node {
 			return node;
 		}
 
-		S.error(tok.str, " expected an expression");
+		S.error("%s expected an expression", tok);
 		return null;
 	}
 
