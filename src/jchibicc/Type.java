@@ -2,7 +2,7 @@ package jchibicc;
 
 class Type {
 	enum Kind {
-		INT, PTR,
+		INT, PTR, FUNC
 	}
 
 	Kind kind;
@@ -12,6 +12,9 @@ class Type {
 	
 	// Declaration
 	Token name;
+	
+	// Function type
+	Type return_ty;	
 
 	Type() {
 	}
@@ -30,6 +33,13 @@ class Type {
 		Type ty = new Type();
 		ty.kind = Kind.PTR;
 		ty.base = base;
+		return ty;
+	}
+
+	static Type func_type(Type return_ty) {
+		Type ty = new Type();
+		ty.kind = Type.Kind.FUNC;
+		ty.return_ty = return_ty;
 		return ty;
 	}
 

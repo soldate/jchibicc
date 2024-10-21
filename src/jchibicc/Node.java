@@ -157,16 +157,29 @@ class Node {
 		return Type.ty_int;
 	}
 
-	// declarator = "*"* ident
+	// type-suffix = ("(" func-params)?
+	private static Type type_suffix(Type ty) {
+	  if (tok.equals("(")) {
+  	    tok = tok.next;
+	    skip(")");
+	    return Type.func_type(ty);
+	  }
+	  return ty;
+	}
+
+	// declarator = "*"* ident type-suffix
 	private static Type declarator(Type ty) {
 		while (consume("*"))
 			ty = Type.pointer_to(ty);
 
 		if (tok.kind != Token.Kind.IDENT) 
 			S.error("%s expected a variable name", tok.toString());
-
-		ty.name = tok;
+		
+		Token start = tok;
 		tok = tok.next;
+		ty = type_suffix(ty);		
+		ty.name = start;
+		
 		return ty;
 	}
 
@@ -550,15 +563,32 @@ class Node {
 		return null;
 	}
 
+	private static Function function() {
+		Type ty = declspec();
+		ty = declarator(ty);
+
+		locals = null;
+
+		Function fn = new Function();
+		fn.name = ty.name.toString();
+
+		skip("{");
+		fn.body = compound_stmt();
+		fn.locals = locals;
+		return fn;
+	}
+
 	private static Token tok;
 
+	// program = function-definition*
 	public static Function parse(Token token) {
 		tok = token;
-		skip("{");
-		Function prog = new Function();
-		prog.body = compound_stmt();
-		prog.locals = locals;
-		return prog;
+		Function head = new Function();
+		Function cur = head;
+
+		while (tok.kind != Token.Kind.EOF)
+			cur = cur.next = function();
+		return head.next;
 	}
 
 }
