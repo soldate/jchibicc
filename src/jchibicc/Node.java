@@ -1,5 +1,7 @@
 package jchibicc;
 
+import java.awt.desktop.PrintFilesEvent;
+
 //This file contains a recursive descent parser for C.
 //
 //Most functions in this file are named after the symbols they are
@@ -157,12 +159,26 @@ class Node {
 		return Type.ty_int;
 	}
 
-	// type-suffix = ("(" func-params)?
+	// func-params = param ("," param)*
+	// param       = declspec declarator
 	private static Type type_suffix(Type ty) {
 	  if (tok.equals("(")) {
   	    tok = tok.next;
-	    skip(")");
-	    return Type.func_type(ty);
+
+  	    Type head = new Type();
+  	    Type cur = head;
+
+  	    while (!tok.equals(")")) {
+  	      if (cur != head) skip(",");
+  	      Type basety = declspec();
+  	      Type ty2 = declarator(basety);
+  	      cur = cur.next = Type.copy_type(ty2);
+  	    }
+
+  	    ty = Type.func_type(ty);
+  	    ty.params = head.next;
+  	    tok = tok.next;
+  	    return ty;
 	  }
 	  return ty;
 	}
@@ -562,6 +578,14 @@ class Node {
 		S.error("%s expected an expression", tok);
 		return null;
 	}
+	
+	private static void create_param_lvars(Type param) {
+		if (param != null) {
+			create_param_lvars(param.next);
+			Obj p = new Obj(param.name.toString(), param, locals);
+			locals = p;
+		}
+	}
 
 	private static Function function() {
 		Type ty = declspec();
@@ -571,6 +595,8 @@ class Node {
 
 		Function fn = new Function();
 		fn.name = ty.name.toString();
+	    create_param_lvars(ty.params);
+		fn.params = locals;		
 
 		skip("{");
 		fn.body = compound_stmt();

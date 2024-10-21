@@ -207,12 +207,15 @@ class Assembly {
 			printf("  push %%rbp\n");
 			printf("  mov %%rsp, %%rbp\n");
 			printf("  sub $%d, %%rsp\n", fn.stack_size);
+			
+			// Save passed-by-register arguments to the stack
+		    int i = 0;
+		    for (Obj var = fn.params; var != null; var = var.next)
+		      printf("  mov %s, %d(%%rbp)\n", argreg[i++], var.offset);			
 
-			for (Node n = prog.body; n != null; n = n.next) {
-				// Emit code
-				gen_stmt(fn.body);
-				assert (depth == 0);
-			}
+			// Emit code
+			gen_stmt(fn.body);
+			assert (depth == 0);
 
 			// Epilogue
 			printf(".L.return.%s:\n", fn.name);

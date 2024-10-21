@@ -15,6 +15,8 @@ class Type {
 	
 	// Function type
 	Type return_ty;	
+	Type params;
+	Type next;	
 
 	Type() {
 	}
@@ -22,12 +24,31 @@ class Type {
 	Type(Kind kind) {
 		this.kind = kind;
 	}
+	
+	@Override
+	public String toString() {
+		if (name != null && kind != null) return name.toString() + " " + kind.toString();
+		else if (name != null) return name.toString();
+		else if (kind != null) return kind.toString();
+		else return super.toString();
+	}
 
 	static Type ty_int = new Type(Kind.INT);
 
 	static boolean is_integer(Type ty) {
 		return ty.kind == Kind.INT;
 	}
+
+	static Type copy_type(Type ty) {
+	  Type ret = new Type();
+	  ret.kind = ty.kind;
+	  ret.name = ty.name;
+	  ret.base = ty.base;
+	  ret.next = ty.next;
+	  ret.params = ty.params;
+	  ret.return_ty = ty.return_ty;
+	  return ret;
+	}	
 
 	static Type pointer_to(Type base) {
 		Type ty = new Type();
@@ -56,6 +77,8 @@ class Type {
 
 		for (Node n = node.body; n != null; n = n.next)
 			add_type(n);
+		for (Node n = node.args; n != null; n = n.next)
+		    add_type(n);		
 
 		switch (node.kind) {
 		case ADD:
