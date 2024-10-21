@@ -68,6 +68,16 @@ class Assembly {
 			printf("  mov %%rax, (%%rdi)\n");
 			return;
 		case FUNCALL:
+		    int nargs = 0;
+		    for (Node arg = node.args; arg != null; arg = arg.next) {
+		      gen_expr(arg);
+		      push();
+		      nargs++;
+		    }
+
+		    for (int i = nargs - 1; i >= 0; i--)
+		      pop(argreg[i]);
+
 			printf("  mov $0, %%rax\n");
 			printf("  call %s\n", node.funcname);
 			return;
@@ -165,6 +175,7 @@ class Assembly {
 	}
 	
 	private static int depth;
+	private static String argreg[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
 	private static int i = 1;
 	private static int count() {

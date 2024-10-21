@@ -64,7 +64,8 @@ class Node {
 	Node body; 
 	
 	// Function call
-	String funcname;	
+	String funcname;
+	Node args;
 	
 	Obj var;   // Used if kind == Node.Kind.VAR
 	int val;   // Used if kind == Node.Kind.NUM
@@ -112,6 +113,11 @@ class Node {
 		this.token = token;
 	}
 	
+	Node(Kind kind, Token token) {
+		this.kind = kind;
+		this.token = token;
+	}
+
 	@Override
 	public String toString() {
 		if (token != null) return token.toString();
@@ -487,8 +493,29 @@ class Node {
 		return primary();
 	}
 
-	// primary = "(" expr ")" | ident args? | num
-	// args = "(" ")"
+	// funcall = ident "(" (assign ("," assign)*)? ")"
+	private static Node funcall() {
+	  Token start = tok;
+	  tok = tok.next.next;
+
+	  Node head = new Node(0);
+	  Node cur = head;
+
+	  while (!tok.equals(")")) {
+	    if (cur != head)
+	      skip(",");
+	    cur = cur.next = assign();
+	  }
+
+	  skip(")");
+
+	  Node node = new Node(Node.Kind.FUNCALL, start);
+	  node.funcname = start.toString();
+	  node.args = head.next;
+	  return node;
+	}
+
+	// primary = "(" expr ")" | ident func-args? | num
 	private static Node primary() {
 		if (tok.equals("(")) {
 			tok = tok.next;
@@ -499,13 +526,8 @@ class Node {
 
 		if (tok.kind == Token.Kind.IDENT) {
 		    // Function call
-		    if (tok.next.equals("(")) {
-		      Node node = new Node(Node.Kind.FUNCALL);		      
-		      node.funcname = tok.str;
-		      tok = tok.next.next;
-		      skip(")");
-		      return node;
-		    }
+			if (tok.next.equals("("))
+			      return funcall();
 
 		    // Variable			
 			Obj var = find_var(tok.str);
