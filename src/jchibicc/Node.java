@@ -1,7 +1,5 @@
 package jchibicc;
 
-import java.awt.desktop.PrintFilesEvent;
-
 //This file contains a recursive descent parser for C.
 //
 //Most functions in this file are named after the symbols they are
@@ -72,36 +70,12 @@ class Node {
 	Obj var;   // Used if kind == Node.Kind.VAR
 	int val;   // Used if kind == Node.Kind.NUM
 
-	Node(int val) {
+	Node(int val, Token token) {
 		this.kind = Kind.NUM;
 		this.val = val;
-		this.token = tok;
+		this.token = token;
 	}
 
-	Node(Kind kind) {
-		this.kind = kind;
-		this.token = tok;		
-	}
-
-	Node(Obj var) {
-		this.kind = Kind.VAR;
-		this.var = var;
-		this.token = tok;
-	}
-	
-	Node(Kind kind, Node lhs) {
-		this.kind = kind;
-		this.lhs = lhs;
-		this.token = tok;
-	}	
-
-	Node(Kind kind, Node lhs, Node rhs) {
-		this.kind = kind;
-		this.lhs = lhs;
-		this.rhs = rhs;
-		this.token = tok;
-	}	
-	
 	Node(Kind kind, Node lhs, Node rhs, Token token) {
 		this.kind = kind;
 		this.lhs = lhs;
@@ -117,6 +91,12 @@ class Node {
 	
 	Node(Kind kind, Token token) {
 		this.kind = kind;
+		this.token = token;
+	}
+
+	public Node(Kind kind, Node lhs, Token token) {
+		this.kind = kind;
+		this.lhs = lhs;
 		this.token = token;
 	}
 
@@ -226,7 +206,7 @@ class Node {
 	private static Node declaration() {
 		Type basety = declspec();
 
-		Node head = new Node(0);
+		Node head = new Node(0, tok);
 		Node cur = head;
 		int i = 0;
 
@@ -242,11 +222,11 @@ class Node {
 			Node lhs = new Node(var, ty.name);
 			tok = tok.next;
 			Node rhs = assign();
-			Node node = new Node(Node.Kind.ASSIGN, lhs, rhs);
-			cur = cur.next = new Node(Node.Kind.EXPR_STMT, node);
+			Node node = new Node(Node.Kind.ASSIGN, lhs, rhs, tok);
+			cur = cur.next = new Node(Node.Kind.EXPR_STMT, node, tok);
 		}
 
-		Node node = new Node(Node.Kind.BLOCK);
+		Node node = new Node(Node.Kind.BLOCK, tok);
 		node.body = head.next;
 		tok = tok.next;
 		return node;
@@ -260,7 +240,7 @@ class Node {
 	// | expr-stmt
 	private static Node stmt() {
 		if (tok.equals("return")) {			
-			Node node = new Node(Node.Kind.RETURN);			
+			Node node = new Node(Node.Kind.RETURN, tok);			
 			tok = tok.next;
 			node.lhs = expr();
 			skip(";");
@@ -268,7 +248,7 @@ class Node {
 		}
 
 		if (tok.equals("if")) {
-			Node node = new Node(Node.Kind.IF);
+			Node node = new Node(Node.Kind.IF, tok);
 			tok = tok.next;
 			skip("(");						
 			node.cond = expr();			
@@ -282,7 +262,7 @@ class Node {
 		}
 
 		if (tok.equals("for")) {
-			Node node = new Node(Node.Kind.FOR);
+			Node node = new Node(Node.Kind.FOR, tok);
 			tok = tok.next;
 			skip("(");
 
@@ -299,7 +279,7 @@ class Node {
 		}
 
 		if (tok.equals("while")) {
-			Node node = new Node(Node.Kind.FOR);
+			Node node = new Node(Node.Kind.FOR, tok);
 			tok = tok.next;
 			skip("(");
 			node.cond = expr();
@@ -318,7 +298,7 @@ class Node {
 
 	// compound-stmt = stmt* "}"
 	private static Node compound_stmt() {
-		Node head = new Node(0);
+		Node head = new Node(0, tok);
 		Node cur = head;
 
 		while (!tok.equals("}")) {
@@ -327,7 +307,7 @@ class Node {
 			Type.add_type(cur);
 		}
 
-		Node node = new Node(Node.Kind.BLOCK);
+		Node node = new Node(Node.Kind.BLOCK, tok);
 		node.body = head.next;
 		tok = tok.next;
 		return node;
@@ -336,11 +316,11 @@ class Node {
 	// expr-stmt = expr ";"
 	private static Node expr_stmt() {
 		if (tok.equals(";")) {
-			Node node = new Node(Node.Kind.BLOCK);
+			Node node = new Node(Node.Kind.BLOCK, tok);
 			tok = tok.next;
 			return node;
 		}
-		Node node = new Node(Node.Kind.EXPR_STMT, expr());
+		Node node = new Node(Node.Kind.EXPR_STMT, expr(), tok);
 		skip(";");
 		return node;
 	}
@@ -430,7 +410,7 @@ class Node {
 
 	  // num + num
 	  if (Type.is_integer(lhs.ty) && Type.is_integer(rhs.ty))
-	    return new Node(Node.Kind.ADD, lhs, rhs);
+	    return new Node(Node.Kind.ADD, lhs, rhs, tok);
 
 	  if (lhs.ty.base != null && rhs.ty.base != null)
 	    S.error("%s invalid operands", tok.toString());
@@ -443,8 +423,8 @@ class Node {
 	  }
 
 	  // ptr + num
-	  rhs = new Node(Node.Kind.MUL, rhs, new Node(lhs.ty.base.size));
-	  return new Node(Node.Kind.ADD, lhs, rhs);
+	  rhs = new Node(Node.Kind.MUL, rhs, new Node(lhs.ty.base.size, tok), tok);
+	  return new Node(Node.Kind.ADD, lhs, rhs, tok);
 	}
 
 	// Like `+`, `-` is overloaded for the pointer type.
@@ -454,22 +434,22 @@ class Node {
 
 	  // num - num
 	  if (Type.is_integer(lhs.ty) && Type.is_integer(rhs.ty))
-	    return new Node(Node.Kind.SUB, lhs, rhs);
+	    return new Node(Node.Kind.SUB, lhs, rhs, tok);
 
 	  // ptr - num
 	  if (lhs.ty.base != null && Type.is_integer(rhs.ty)) {
-	    rhs = new Node(Node.Kind.MUL, rhs, new Node(lhs.ty.base.size));
+	    rhs = new Node(Node.Kind.MUL, rhs, new Node(lhs.ty.base.size, tok), tok);
 	    Type.add_type(rhs);
-	    Node node = new Node(Node.Kind.SUB, lhs, rhs);
+	    Node node = new Node(Node.Kind.SUB, lhs, rhs, tok);
 	    node.ty = lhs.ty;
 	    return node;
 	  }
 
 	  // ptr - ptr, which returns how many elements are between the two.
 	  if (lhs.ty.base != null && rhs.ty.base != null) {
-	    Node node = new Node(Node.Kind.SUB, lhs, rhs);
+	    Node node = new Node(Node.Kind.SUB, lhs, rhs, tok);
 	    node.ty = Type.ty_int;
-	    return new Node(Node.Kind.DIV, node, new Node(lhs.ty.base.size));
+	    return new Node(Node.Kind.DIV, node, new Node(lhs.ty.base.size, tok), tok);
 	  }
 
 	  S.error("%s invalid operands", tok.toString());
@@ -523,7 +503,7 @@ class Node {
 	}
 
 	// unary = ("+" | "-" | "*" | "&") unary
-	//  | primary
+	//  | postfix
 	private static Node unary() {
 		if (tok.equals("+")) {
 			tok = tok.next;
@@ -531,25 +511,40 @@ class Node {
 		}
 		if (tok.equals("-")) {
 			tok = tok.next;
-			return new Node(Node.Kind.NEG, unary());
+			return new Node(Node.Kind.NEG, unary(), tok);
 		}
 		if (tok.equals("&")) {
 			tok = tok.next;
-			return new Node(Node.Kind.ADDR, unary());
+			return new Node(Node.Kind.ADDR, unary(), tok);
 		}
 		if (tok.equals("*")) {
 			tok = tok.next;
-			return new Node(Node.Kind.DEREF, unary());
+			return new Node(Node.Kind.DEREF, unary(), tok);
 		}
-		return primary();
+		return postfix();
 	}
 
+	// postfix = primary ("[" expr "]")*
+	private static Node postfix() {
+	  Node node = primary();
+
+	  while (tok.equals("[")) {
+	    // x[y] is short for *(x+y)
+	    Token start = tok;
+	    tok = tok.next;
+	    Node idx = expr();
+	    skip("]");
+	    node = new Node(Node.Kind.DEREF, new_add(node, idx, start), start);
+	  }
+	  return node;
+	}
+	
 	// funcall = ident "(" (assign ("," assign)*)? ")"
 	private static Node funcall() {
 	  Token start = tok;
 	  tok = tok.next.next;
 
-	  Node head = new Node(0);
+	  Node head = new Node(0, tok);
 	  Node cur = head;
 
 	  while (!tok.equals(")")) {
@@ -583,16 +578,15 @@ class Node {
 		    // Variable			
 			Obj var = find_var(tok.str);
 			if (var == null) {
-				var = new Obj(tok.str, locals);
-				locals = var;
+				S.error("%s undefined variable", tok);
 			}
-			Node node = new Node(var);
+			Node node = new Node(var, tok);
 			tok = tok.next;
 			return node;
 		}
 
 		if (tok.kind == Token.Kind.NUM) {
-			Node node = new Node(tok.val);
+			Node node = new Node(tok.val, tok);
 			tok = tok.next;
 			return node;
 		}

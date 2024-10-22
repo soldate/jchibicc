@@ -34,10 +34,6 @@ class Type {
 	Type() {
 	}
 
-	Type(Kind kind) {
-		this.kind = kind;
-	}
-	
 	Type(Kind kind, int size) {
 		this.kind = kind;
 		this.size = size;
@@ -60,6 +56,7 @@ class Type {
 	static Type copy_type(Type ty) {
 	  Type ret = new Type();
 	  ret.kind = ty.kind;
+	  ret.size = ty.size;
 	  ret.name = ty.name;
 	  ret.base = ty.base;
 	  ret.next = ty.next;
@@ -126,8 +123,6 @@ class Type {
 		case LT:
 		case LE:
 		case NUM:
-			node.ty = ty_int;
-			return;
 		case FUNCALL:
 		    node.ty = ty_int;
 		    return;			
