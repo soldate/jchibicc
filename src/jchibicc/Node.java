@@ -185,8 +185,8 @@ class Node {
 	}
 
 	// type-suffix = "(" func-params
-//	             | "[" num "]"
-//	             | ε
+	//  | "[" num "]" type-suffix
+	//  | ε
 	private static Type type_suffix(Type ty) {
 	  if (tok.equals("(")) {
 		tok = tok.next;
@@ -198,7 +198,8 @@ class Node {
 	    int sz = get_number();
 	    tok = tok.next;
 	    skip("]");
-	    return Type.array_of(ty, sz);
+	    Type ty2 = type_suffix(ty);
+	    return Type.array_of(ty2, sz);
 	  }
 	  
 	  return ty;
