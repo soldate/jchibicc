@@ -56,7 +56,7 @@ class Token {
 	}
 
 	public static Token tokenize(String code) {
-		String regex = "\\w+|[{}();,]|==|<=|>=|!=|\\+\\+|--|&&|\\|\\||\\&|[+\\-*/<>=!]";
+		String regex = "\\w+|[{}();,]|==|<=|>=|!=|\\+\\+|--|&&|\\|\\||\\&|[+\\-*/<>=!\\[\\]]";
 
 		Pattern pattern = Pattern.compile(regex);
 		Matcher matcher = pattern.matcher(code);

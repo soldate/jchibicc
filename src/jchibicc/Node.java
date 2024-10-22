@@ -153,33 +153,54 @@ class Node {
 		} else return false;
 	}
 
+	private static int get_number() {
+		if (tok.kind != Token.Kind.NUM) S.error("%s expected a number", tok);
+		return tok.val;
+	}
+
 	// declspec = "int"
 	private static Type declspec() {
 		skip("int");
 		return Type.ty_int;
 	}
 
-	// func-params = param ("," param)*
+	// func-params = (param ("," param)*)? ")"
 	// param       = declspec declarator
+	private static Type func_params(Type ty) {
+	  Type head = new Type();
+	  Type cur = head;
+
+	  while (!tok.equals(")")) {
+	    if (cur != head)
+	      skip(",");
+	    Type basety = declspec();
+	    Type ty2 = declarator(basety);
+	    cur = cur.next = Type.copy_type(ty2);
+	  }
+
+	  ty = Type.func_type(ty);
+	  ty.params = head.next;
+	  tok = tok.next;
+	  return ty;
+	}
+
+	// type-suffix = "(" func-params
+//	             | "[" num "]"
+//	             | ε
 	private static Type type_suffix(Type ty) {
 	  if (tok.equals("(")) {
-  	    tok = tok.next;
-
-  	    Type head = new Type();
-  	    Type cur = head;
-
-  	    while (!tok.equals(")")) {
-  	      if (cur != head) skip(",");
-  	      Type basety = declspec();
-  	      Type ty2 = declarator(basety);
-  	      cur = cur.next = Type.copy_type(ty2);
-  	    }
-
-  	    ty = Type.func_type(ty);
-  	    ty.params = head.next;
-  	    tok = tok.next;
-  	    return ty;
+		tok = tok.next;
+	    return func_params(ty);
 	  }
+
+	  if (tok.equals("[")) {
+		tok = tok.next;
+	    int sz = get_number();
+	    tok = tok.next;
+	    skip("]");
+	    return Type.array_of(ty, sz);
+	  }
+	  
 	  return ty;
 	}
 
@@ -421,7 +442,7 @@ class Node {
 	  }
 
 	  // ptr + num
-	  rhs = new Node(Node.Kind.MUL, rhs, new Node(8));
+	  rhs = new Node(Node.Kind.MUL, rhs, new Node(lhs.ty.base.size));
 	  return new Node(Node.Kind.ADD, lhs, rhs);
 	}
 
@@ -436,7 +457,7 @@ class Node {
 
 	  // ptr - num
 	  if (lhs.ty.base != null && Type.is_integer(rhs.ty)) {
-	    rhs = new Node(Node.Kind.MUL, rhs, new Node(8));
+	    rhs = new Node(Node.Kind.MUL, rhs, new Node(lhs.ty.base.size));
 	    Type.add_type(rhs);
 	    Node node = new Node(Node.Kind.SUB, lhs, rhs);
 	    node.ty = lhs.ty;
@@ -447,7 +468,7 @@ class Node {
 	  if (lhs.ty.base != null && rhs.ty.base != null) {
 	    Node node = new Node(Node.Kind.SUB, lhs, rhs);
 	    node.ty = Type.ty_int;
-	    return new Node(Node.Kind.DIV, node, new Node(8));
+	    return new Node(Node.Kind.DIV, node, new Node(lhs.ty.base.size));
 	  }
 
 	  S.error("%s invalid operands", tok.toString());

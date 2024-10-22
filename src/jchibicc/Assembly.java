@@ -40,6 +40,27 @@ class Assembly {
 		S.error("%s not an lvalue", node.token.toString());
 	}
 	
+	// Load a value from where %rax is pointing to.
+	private static void load(Type ty) {
+	  if (ty.kind == Type.Kind.ARRAY) {
+	    // If it is an array, do not attempt to load a value to the
+	    // register because in general we can't load an entire array to a
+	    // register. As a result, the result of an evaluation of an array
+	    // becomes not the array itself but the address of the array.
+	    // This is where "array is automatically converted to a pointer to
+	    // the first element of the array in C" occurs.
+	    return;
+	  }
+
+	  printf("  mov (%%rax), %%rax\n");
+	}
+
+	// Store %rax to an address that the stack top is pointing to.
+	private static void store() {
+	  pop("%rdi");
+	  printf("  mov %%rax, (%%rdi)\n");
+	}	
+	
 	private static void gen_expr(Node node) {
 		switch (node.kind) {
 		case NUM:
@@ -51,11 +72,11 @@ class Assembly {
 			return;
 		case VAR:
 			gen_addr(node);
-			printf("  mov (%%rax), %%rax\n");
+			load(node.ty);
 			return;
 		case DEREF:
 			gen_expr(node.lhs);
-			printf("  mov (%%rax), %%rax\n");
+		    load(node.ty);
 			return;
 		case ADDR:
 			gen_addr(node.lhs);
@@ -64,8 +85,7 @@ class Assembly {
 			gen_addr(node.lhs);
 			push();
 			gen_expr(node.rhs);
-			pop("%rdi");
-			printf("  mov %%rax, (%%rdi)\n");
+			store();
 			return;
 		case FUNCALL:
 		    int nargs = 0;
@@ -188,7 +208,7 @@ class Assembly {
 		for (Function fn = prog; fn != null; fn = fn.next) {
 			int offset = 0;
 			for (Obj var = fn.locals; var != null; var = var.next) {
-				offset += 8;
+				offset += var.ty.size;
 				var.offset = -offset;
 			}
 			fn.stack_size = align_to(offset, 16);
