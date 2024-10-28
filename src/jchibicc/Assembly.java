@@ -56,15 +56,21 @@ class Assembly {
 	    // This is where "array is automatically converted to a pointer to
 	    // the first element of the array in C" occurs.
 	    return;
-	  }
-
-	  printf("  mov (%%rax), %%rax\n");
 	}
 
+	if (ty.size == 1) 
+		printf("  movsbq (%%rax), %%rax\n");
+	else 
+		printf("  mov (%%rax), %%rax\n");
+}
+
 	// Store %rax to an address that the stack top is pointing to.
-	private static void store() {
+	private static void store(Type ty) {
 	  pop("%rdi");
-	  printf("  mov %%rax, (%%rdi)\n");
+	  if (ty.size == 1)
+		    printf("  mov %%al, (%%rdi)\n");
+		  else
+		    printf("  mov %%rax, (%%rdi)\n");
 	}	
 	
 	private static void gen_expr(Node node) {
@@ -91,7 +97,7 @@ class Assembly {
 			gen_addr(node.lhs);
 			push();
 			gen_expr(node.rhs);
-			store();
+			store(node.ty);
 			return;
 		case FUNCALL:
 		    int nargs = 0;
@@ -102,7 +108,7 @@ class Assembly {
 		    }
 
 		    for (int i = nargs - 1; i >= 0; i--)
-		      pop(argreg[i]);
+		      pop(argreg64[i]);
 
 			printf("  mov $0, %%rax\n");
 			printf("  call %s\n", node.funcname);
@@ -201,7 +207,8 @@ class Assembly {
 	}
 	
 	private static int depth;
-	private static String argreg[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+	private static String argreg8[] = {"%dil", "%sil", "%dl", "%cl", "%r8b", "%r9b"};
+	private static String argreg64[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};	
 	private static Obj current_fn;
 	
 	private static int i = 1;
@@ -252,7 +259,10 @@ class Assembly {
 			// Save passed-by-register arguments to the stack
 			int i = 0;
 			for (Obj var = fn.params; var != null; var = var.next)
-				printf("  mov %s, %d(%%rbp)\n", argreg[i++], var.offset);
+				if (var.ty.size == 1) 
+					printf("  mov %s, %d(%%rbp)\n", argreg8[i++], var.offset);
+				else 
+					printf("  mov %s, %d(%%rbp)\n", argreg64[i++], var.offset);
 
 			// Emit code
 			gen_stmt(fn.body);

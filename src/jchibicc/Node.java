@@ -168,14 +168,19 @@ class Node {
 		return tok.val;
 	}
 
-	// declspec = "int"
+	// declspec = "char" | "int"
 	private static Type declspec() {
+		if (tok.equals("char")) {
+			tok = tok.next;
+			return Type.ty_char;
+		}
+
 		skip("int");
 		return Type.ty_int;
 	}
 
 	// func-params = (param ("," param)*)? ")"
-	// param       = declspec declarator
+	// param = declspec declarator
 	private static Type func_params(Type ty) {
 	  Type head = new Type();
 	  Type cur = head;
@@ -259,6 +264,11 @@ class Node {
 		tok = tok.next;
 		return node;
 	}
+	
+	// Returns true if a given token represents a type.
+	private static boolean is_typename() {
+	  return tok.equals("char") || tok.equals("int");
+	}
 
 	// stmt = "return" expr ";"
 	// | "if" "(" expr ")" stmt ("else" stmt)?
@@ -332,7 +342,7 @@ class Node {
 		Node cur = head;
 
 		while (!tok.equals("}")) {
-			if (tok.equals("int")) cur = cur.next = declaration();
+			if (is_typename()) cur = cur.next = declaration();
 			else cur = cur.next = stmt();
 			Type.add_type(cur);
 		}

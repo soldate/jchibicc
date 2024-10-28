@@ -2,7 +2,7 @@ package jchibicc;
 
 class Type {
 	enum Kind {
-		INT, PTR, FUNC, ARRAY,
+		CHAR, INT, PTR, FUNC, ARRAY,
 	}
 
 	Kind kind;
@@ -47,10 +47,11 @@ class Type {
 		else return super.toString();
 	}
 
+	static Type ty_char = new Type(Kind.CHAR, 1);
 	static Type ty_int = new Type(Kind.INT, 8);
 
 	static boolean is_integer(Type ty) {
-		return ty.kind == Kind.INT;
+		return ty.kind == Kind.CHAR || ty.kind == Kind.INT;
 	}
 
 	static Type copy_type(Type ty) {
