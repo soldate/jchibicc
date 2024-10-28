@@ -12,10 +12,10 @@ public class Main {
 		
 		Token tok = Token.tokenize(c_code);
 		
-		Function prog = Node.parse(tok);
+		Obj prog = Node.parse(tok);
 		
 		// Traverse the AST to emit assembly. 
-		Assembly.emit(prog);		
+		Assembly.codegen(prog);		
 	}
 
 }

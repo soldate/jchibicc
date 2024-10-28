@@ -67,38 +67,8 @@ class Node {
 	String funcname;
 	Node args;
 	
-	Obj var;   // Used if kind == Node.Kind.VAR
-	int val;   // Used if kind == Node.Kind.NUM
-
-	Node(int val, Token token) {
-		this.kind = Kind.NUM;
-		this.val = val;
-		this.token = token;
-	}
-
-	Node(Kind kind, Node lhs, Node rhs, Token token) {
-		this.kind = kind;
-		this.lhs = lhs;
-		this.rhs = rhs;
-		this.token = token;
-	}	
-
-	Node(Obj var, Token token) {
-		this.kind = Kind.VAR;
-		this.var = var;
-		this.token = token;
-	}
-	
-	Node(Kind kind, Token token) {
-		this.kind = kind;
-		this.token = token;
-	}
-
-	public Node(Kind kind, Node lhs, Token token) {
-		this.kind = kind;
-		this.lhs = lhs;
-		this.token = token;
-	}
+	Obj var;   // Used if kind == Kind.VAR
+	int val;   // Used if kind == Kind.NUM
 
 	@Override
 	public String toString() {
@@ -111,6 +81,65 @@ class Node {
 	// ==================
 
 	private static Obj locals;
+	private static Obj globals;
+	
+	private static Node new_head() {
+		return new Node();
+	}
+	
+	private static Node new_node(Kind kind, Token tok) {
+		Node node = new Node();
+		node.kind = kind;
+		node.token = tok;
+		return node;
+	}
+
+	private static Node new_binary(Kind kind, Node lhs, Node rhs, Token tok) {
+		Node node = new_node(kind, tok);
+		node.lhs = lhs;
+		node.rhs = rhs;
+		return node;
+	}
+
+	private static Node new_unary(Kind kind, Node expr, Token tok) {
+		Node node = new_node(kind, tok);
+		node.lhs = expr;
+		return node;
+	}
+
+	private static Node new_num(int val, Token tok) {
+		Node node = new_node(Kind.NUM, tok);
+		node.val = val;
+		return node;
+	}
+
+	private static Node new_var_node(Obj var, Token tok) {
+		Node node = new_node(Kind.VAR, tok);
+		node.var = var;
+		return node;
+	}
+
+	private static Obj new_var(String name, Type ty) {
+		Obj var = new Obj(name, ty, locals);
+		// var.name = name;
+		// var.ty = ty;
+		return var;
+	}
+
+	private static Obj new_lvar(Type ty) {
+		Obj var = new_var(ty.name.str, ty);
+		var.is_local = true;
+		var.next = locals;
+		locals = var;
+		return var;
+	}
+
+	private static Obj new_gvar(Type ty) {
+		Obj var = new_var(ty.name.str, ty);
+		var.next = globals;
+		globals = var;
+		return var;
+	}
 
 	// Ensure that the current token is `op`.
 	private static void skip(String op) {
@@ -201,12 +230,11 @@ class Node {
 		return ty;
 	}
 
-	// declaration = declspec (declarator ("=" expr)? ("," declarator ("="
-	// expr)?)*)? ";"
+	// declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 	private static Node declaration() {
 		Type basety = declspec();
 
-		Node head = new Node(0, tok);
+		Node head = new_head();
 		Node cur = head;
 		int i = 0;
 
@@ -214,19 +242,18 @@ class Node {
 			if (i++ > 0) skip(",");
 
 			Type ty = declarator(basety);
-			Obj var = new Obj(ty, locals);
-			locals = var;
+			Obj var = new_lvar(ty);
 
 			if (!tok.equals("=")) continue;			
 
-			Node lhs = new Node(var, ty.name);
+			Node lhs = new_var_node(var, ty.name);
 			tok = tok.next;
 			Node rhs = assign();
-			Node node = new Node(Node.Kind.ASSIGN, lhs, rhs, tok);
-			cur = cur.next = new Node(Node.Kind.EXPR_STMT, node, tok);
+			Node node = new_binary(Kind.ASSIGN, lhs, rhs, tok);
+			cur = cur.next = new_unary(Kind.EXPR_STMT, node, tok);
 		}
 
-		Node node = new Node(Node.Kind.BLOCK, tok);
+		Node node = new_node(Kind.BLOCK, tok);
 		node.body = head.next;
 		tok = tok.next;
 		return node;
@@ -240,7 +267,7 @@ class Node {
 	// | expr-stmt
 	private static Node stmt() {
 		if (tok.equals("return")) {			
-			Node node = new Node(Node.Kind.RETURN, tok);			
+			Node node = new_node(Kind.RETURN, tok);			
 			tok = tok.next;
 			node.lhs = expr();
 			skip(";");
@@ -248,7 +275,7 @@ class Node {
 		}
 
 		if (tok.equals("if")) {
-			Node node = new Node(Node.Kind.IF, tok);
+			Node node = new_node(Kind.IF, tok);
 			tok = tok.next;
 			skip("(");						
 			node.cond = expr();			
@@ -262,7 +289,7 @@ class Node {
 		}
 
 		if (tok.equals("for")) {
-			Node node = new Node(Node.Kind.FOR, tok);
+			Node node = new_node(Kind.FOR, tok);
 			tok = tok.next;
 			skip("(");
 
@@ -279,7 +306,7 @@ class Node {
 		}
 
 		if (tok.equals("while")) {
-			Node node = new Node(Node.Kind.FOR, tok);
+			Node node = new_node(Kind.FOR, tok);
 			tok = tok.next;
 			skip("(");
 			node.cond = expr();
@@ -298,7 +325,9 @@ class Node {
 
 	// compound-stmt = stmt* "}"
 	private static Node compound_stmt() {
-		Node head = new Node(0, tok);
+		Node node = new_node(Kind.BLOCK, tok);
+		
+		Node head = new_head();
 		Node cur = head;
 
 		while (!tok.equals("}")) {
@@ -306,8 +335,7 @@ class Node {
 			else cur = cur.next = stmt();
 			Type.add_type(cur);
 		}
-
-		Node node = new Node(Node.Kind.BLOCK, tok);
+		
 		node.body = head.next;
 		tok = tok.next;
 		return node;
@@ -316,11 +344,12 @@ class Node {
 	// expr-stmt = expr ";"
 	private static Node expr_stmt() {
 		if (tok.equals(";")) {
-			Node node = new Node(Node.Kind.BLOCK, tok);
+			Node node = new_node(Kind.BLOCK, tok);
 			tok = tok.next;
 			return node;
 		}
-		Node node = new Node(Node.Kind.EXPR_STMT, expr(), tok);
+		Node node = new_node(Kind.EXPR_STMT, tok);
+		node.lhs = expr();
 		skip(";");
 		return node;
 	}
@@ -336,7 +365,7 @@ class Node {
 		Token start = tok;
 		if (tok.equals("=")) {
 			tok = tok.next;
-			node = new Node(Node.Kind.ASSIGN, node, assign(), start);
+			node = new_binary(Kind.ASSIGN, node, assign(), start);
 		}
 		return node;
 	}
@@ -350,13 +379,13 @@ class Node {
 			
 			if (tok.equals("==")) {
 				tok = tok.next;
-				node = new Node(Node.Kind.EQ, node, relational(), start);
+				node = new_binary(Kind.EQ, node, relational(), start);
 				continue;
 			}
 
 			if (tok.equals("!=")) {
 				tok = tok.next;
-				node = new Node(Node.Kind.NE, node, relational(), start);
+				node = new_binary(Kind.NE, node, relational(), start);
 				continue;
 			}
 
@@ -373,25 +402,25 @@ class Node {
 			
 			if (tok.equals("<")) {
 				tok = tok.next;
-				node = new Node(Node.Kind.LT, node, add(), start);
+				node = new_binary(Kind.LT, node, add(), start);
 				continue;
 			}
 
 			if (tok.equals("<=")) {
 				tok = tok.next;
-				node = new Node(Node.Kind.LE, node, add(), start);
+				node = new_binary(Kind.LE, node, add(), start);
 				continue;
 			}
 
 			if (tok.equals(">")) {
 				tok = tok.next;
-				node = new Node(Node.Kind.LT, add(), node, start);
+				node = new_binary(Kind.LT, add(), node, start);
 				continue;
 			}
 
 			if (tok.equals(">=")) {
 				tok = tok.next;
-				node = new Node(Node.Kind.LE, add(), node, start);
+				node = new_binary(Kind.LE, add(), node, start);
 				continue;
 			}
 
@@ -410,7 +439,7 @@ class Node {
 
 	  // num + num
 	  if (Type.is_integer(lhs.ty) && Type.is_integer(rhs.ty))
-	    return new Node(Node.Kind.ADD, lhs, rhs, tok);
+	    return new_binary(Kind.ADD, lhs, rhs, tok);
 
 	  if (lhs.ty.base != null && rhs.ty.base != null)
 	    S.error("%s invalid operands", tok.toString());
@@ -423,8 +452,8 @@ class Node {
 	  }
 
 	  // ptr + num
-	  rhs = new Node(Node.Kind.MUL, rhs, new Node(lhs.ty.base.size, tok), tok);
-	  return new Node(Node.Kind.ADD, lhs, rhs, tok);
+	  rhs = new_binary(Kind.MUL, rhs, new_num(lhs.ty.base.size, tok), tok);
+	  return new_binary(Kind.ADD, lhs, rhs, tok);
 	}
 
 	// Like `+`, `-` is overloaded for the pointer type.
@@ -434,22 +463,22 @@ class Node {
 
 	  // num - num
 	  if (Type.is_integer(lhs.ty) && Type.is_integer(rhs.ty))
-	    return new Node(Node.Kind.SUB, lhs, rhs, tok);
+	    return new_binary(Kind.SUB, lhs, rhs, tok);
 
 	  // ptr - num
 	  if (lhs.ty.base != null && Type.is_integer(rhs.ty)) {
-	    rhs = new Node(Node.Kind.MUL, rhs, new Node(lhs.ty.base.size, tok), tok);
+	    rhs = new_binary(Kind.MUL, rhs, new_num(lhs.ty.base.size, tok), tok);
 	    Type.add_type(rhs);
-	    Node node = new Node(Node.Kind.SUB, lhs, rhs, tok);
+	    Node node = new_binary(Kind.SUB, lhs, rhs, tok);
 	    node.ty = lhs.ty;
 	    return node;
 	  }
 
 	  // ptr - ptr, which returns how many elements are between the two.
 	  if (lhs.ty.base != null && rhs.ty.base != null) {
-	    Node node = new Node(Node.Kind.SUB, lhs, rhs, tok);
+	    Node node = new_binary(Kind.SUB, lhs, rhs, tok);
 	    node.ty = Type.ty_int;
-	    return new Node(Node.Kind.DIV, node, new Node(lhs.ty.base.size, tok), tok);
+	    return new_binary(Kind.DIV, node, new_num(lhs.ty.base.size, tok), tok);
 	  }
 
 	  S.error("%s invalid operands", tok.toString());
@@ -488,13 +517,13 @@ class Node {
 			
 			if (tok.equals("*")) {
 				tok = tok.next;
-				node = new Node(Node.Kind.MUL, node, unary(), start);
+				node = new_binary(Kind.MUL, node, unary(), start);
 				continue;
 			}
 
 			if (tok.equals("/")) {
 				tok = tok.next;
-				node = new Node(Node.Kind.DIV, node, unary(), start);
+				node = new_binary(Kind.DIV, node, unary(), start);
 				continue;
 			}
 
@@ -511,15 +540,15 @@ class Node {
 		}
 		if (tok.equals("-")) {
 			tok = tok.next;
-			return new Node(Node.Kind.NEG, unary(), tok);
+			return new_unary(Kind.NEG, unary(), tok);
 		}
 		if (tok.equals("&")) {
 			tok = tok.next;
-			return new Node(Node.Kind.ADDR, unary(), tok);
+			return new_unary(Kind.ADDR, unary(), tok);
 		}
 		if (tok.equals("*")) {
 			tok = tok.next;
-			return new Node(Node.Kind.DEREF, unary(), tok);
+			return new_unary(Kind.DEREF, unary(), tok);
 		}
 		return postfix();
 	}
@@ -534,7 +563,7 @@ class Node {
 	    tok = tok.next;
 	    Node idx = expr();
 	    skip("]");
-	    node = new Node(Node.Kind.DEREF, new_add(node, idx, start), start);
+	    node = new_unary(Kind.DEREF, new_add(node, idx, start), start);
 	  }
 	  return node;
 	}
@@ -544,7 +573,7 @@ class Node {
 	  Token start = tok;
 	  tok = tok.next.next;
 
-	  Node head = new Node(0, tok);
+	  Node head = new_head();
 	  Node cur = head;
 
 	  while (!tok.equals(")")) {
@@ -555,7 +584,7 @@ class Node {
 
 	  skip(")");
 
-	  Node node = new Node(Node.Kind.FUNCALL, start);
+	  Node node = new_node(Kind.FUNCALL, start);
 	  node.funcname = start.toString();
 	  node.args = head.next;
 	  return node;
@@ -574,7 +603,7 @@ class Node {
 			tok = tok.next;
 			Node node = unary();
 			Type.add_type(node);
-			return new Node(node.ty.size, tok);
+			return new_num(node.ty.size, tok);
 		}
 
 		if (tok.kind == Token.Kind.IDENT) {
@@ -587,13 +616,13 @@ class Node {
 			if (var == null) {
 				S.error("%s undefined variable", tok);
 			}
-			Node node = new Node(var, tok);
+			Node node = new_var_node(var, tok);
 			tok = tok.next;
 			return node;
 		}
 
 		if (tok.kind == Token.Kind.NUM) {
-			Node node = new Node(tok.val, tok);
+			Node node = new_num(tok.val, tok);
 			tok = tok.next;
 			return node;
 		}
@@ -605,39 +634,38 @@ class Node {
 	private static void create_param_lvars(Type param) {
 		if (param != null) {
 			create_param_lvars(param.next);
-			Obj p = new Obj(param.name.toString(), param, locals);
-			locals = p;
+			Obj p = new_lvar(param);
 		}
 	}
 
-	private static Function function() {
-		Type ty = declspec();
-		ty = declarator(ty);
+	private static Token function(Type basety) {
+		Type ty = declarator(basety);
 
+		Obj fn = new_gvar(ty);
+		fn.is_function = true;
+		
 		locals = null;
-
-		Function fn = new Function();
-		fn.name = ty.name.toString();
 	    create_param_lvars(ty.params);
 		fn.params = locals;		
 
 		skip("{");
 		fn.body = compound_stmt();
 		fn.locals = locals;
-		return fn;
+		return tok;
 	}
 
 	private static Token tok;
 
 	// program = function-definition*
-	public static Function parse(Token token) {
+	public static Obj parse(Token token) {
+		globals = null;
 		tok = token;
-		Function head = new Function();
-		Function cur = head;
-
-		while (tok.kind != Token.Kind.EOF)
-			cur = cur.next = function();
-		return head.next;
+		
+		while (tok.kind != Token.Kind.EOF) {
+			Type basety = declspec();	
+			tok = function(basety);
+		}
+		return globals;
 	}
 
 }

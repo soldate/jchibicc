@@ -2,9 +2,17 @@ package jchibicc;
 
 class Obj {
 	Obj next;
-	String name; // Variable name
-	Type ty;     // Type
-	int offset;  // Offset from RBP
+	String name; 		 // Variable name
+	Type ty;    		 // Type
+	boolean is_local; 	 // local or global/function
+	int offset;  		 // Offset from RBP  
+
+	boolean is_function; // Global variable or function	
+	
+	Obj params; 		 // Function
+	Node body;
+	Obj locals;
+	int stack_size;
 	
 	Obj(String name, Obj locals) {
 		this.name = name;

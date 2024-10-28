@@ -196,7 +196,7 @@ class Assembly {
 	
 	private static int depth;
 	private static String argreg[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
-	private static Function current_fn;
+	private static Obj current_fn;
 	
 	private static int i = 1;
 	private static int count() {
@@ -204,8 +204,11 @@ class Assembly {
 	}
 
 	// Assign offsets to local variables.
-	private static void assign_lvar_offsets(Function prog) {
-		for (Function fn = prog; fn != null; fn = fn.next) {
+	private static void assign_lvar_offsets(Obj prog) {
+		for (Obj fn = prog; fn != null; fn = fn.next) {
+			if (!fn.is_function)
+			      continue;
+			
 			int offset = 0;
 			for (Obj var = fn.locals; var != null; var = var.next) {
 				offset += var.ty.size;
@@ -215,10 +218,13 @@ class Assembly {
 		}
 	}
 
-	public static void emit(Function prog) {
+	public static void codegen(Obj prog) {
 		assign_lvar_offsets(prog);
 
-		for (Function fn = prog; fn != null; fn = fn.next) {
+		for (Obj fn = prog; fn != null; fn = fn.next) {
+			if (!fn.is_function)
+			      continue;
+			
 			printf("  .globl %s\n", fn.name);
 			printf("%s:\n", fn.name);
 			current_fn = fn;
