@@ -28,7 +28,13 @@ class Assembly {
 	private static void gen_addr(Node node) {
 		switch (node.kind) {
 		case VAR:
-			printf("  lea %d(%%rbp), %%rax\n", node.var.offset);
+			if (node.var.is_local) {
+				// Local variable
+				printf("  lea %d(%%rbp), %%rax\n", node.var.offset);
+			} else {
+				// Global variable
+				printf("  lea %s(%%rip), %%rax\n", node.var.name);
+			}
 			return;
 		case DEREF:
 			gen_expr(node.lhs);
@@ -217,15 +223,24 @@ class Assembly {
 			fn.stack_size = align_to(offset, 16);
 		}
 	}
+	
+	private static void emit_data(Obj prog) {
+		for (Obj var = prog; var != null; var = var.next) {
+			if (var.is_function) continue;
 
-	public static void codegen(Obj prog) {
-		assign_lvar_offsets(prog);
+			printf("  .data\n");
+			printf("  .globl %s\n", var.name);
+			printf("%s:\n", var.name);
+			printf("  .zero %d\n", var.ty.size);
+		}
+	}
 
+	private static void emit_text(Obj prog) {
 		for (Obj fn = prog; fn != null; fn = fn.next) {
-			if (!fn.is_function)
-			      continue;
-			
+			if (!fn.is_function) continue;
+
 			printf("  .globl %s\n", fn.name);
+			printf("  .text\n");
 			printf("%s:\n", fn.name);
 			current_fn = fn;
 
@@ -233,11 +248,11 @@ class Assembly {
 			printf("  push %%rbp\n");
 			printf("  mov %%rsp, %%rbp\n");
 			printf("  sub $%d, %%rsp\n", fn.stack_size);
-			
+
 			// Save passed-by-register arguments to the stack
-		    int i = 0;
-		    for (Obj var = fn.params; var != null; var = var.next)
-		      printf("  mov %s, %d(%%rbp)\n", argreg[i++], var.offset);			
+			int i = 0;
+			for (Obj var = fn.params; var != null; var = var.next)
+				printf("  mov %s, %d(%%rbp)\n", argreg[i++], var.offset);
 
 			// Emit code
 			gen_stmt(fn.body);
@@ -249,5 +264,11 @@ class Assembly {
 			printf("  pop %%rbp\n");
 			printf("  ret\n");
 		}
+	}
+
+	public static void codegen(Obj prog) {
+		assign_lvar_offsets(prog);
+		emit_data(prog);
+		emit_text(prog);
 	}
 }

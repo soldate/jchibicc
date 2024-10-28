@@ -120,9 +120,9 @@ class Node {
 	}
 
 	private static Obj new_var(String name, Type ty) {
-		Obj var = new Obj(name, ty, locals);
-		// var.name = name;
-		// var.ty = ty;
+		Obj var = new Obj();
+		var.name = name;
+		var.ty = ty;
 		return var;
 	}
 
@@ -149,9 +149,10 @@ class Node {
 
 	// Find a local variable by name.
 	private static Obj find_var(String name) {
-		if (locals == null) return null;
-		for (Obj tmp = locals; tmp != null; tmp = tmp.next)
-			if (tmp.name.equals(name)) return tmp;
+		for (Obj var = locals; var != null; var = var.next)
+			if (var.name.equals(name)) return var;
+		for (Obj var = globals; var != null; var = var.next)
+			if (var.name.equals(name)) return var;		
 		return null;
 	}
 
@@ -220,7 +221,7 @@ class Node {
 			ty = Type.pointer_to(ty);
 
 		if (tok.kind != Token.Kind.IDENT) 
-			S.error("%s expected a variable name", tok.toString());
+			S.error("%s expected a variable name\n", tok.toString());
 		
 		Token start = tok;
 		tok = tok.next;
@@ -614,7 +615,7 @@ class Node {
 		    // Variable			
 			Obj var = find_var(tok.str);
 			if (var == null) {
-				S.error("%s undefined variable", tok);
+				S.error("%s undefined variable\n", tok);
 			}
 			Node node = new_var_node(var, tok);
 			tok = tok.next;
@@ -634,11 +635,11 @@ class Node {
 	private static void create_param_lvars(Type param) {
 		if (param != null) {
 			create_param_lvars(param.next);
-			Obj p = new_lvar(param);
+			new_lvar(param);
 		}
 	}
 
-	private static Token function(Type basety) {
+	private static void function(Type basety) {
 		Type ty = declarator(basety);
 
 		Obj fn = new_gvar(ty);
@@ -651,9 +652,33 @@ class Node {
 		skip("{");
 		fn.body = compound_stmt();
 		fn.locals = locals;
-		return tok;
 	}
 
+	private static void global_variable(Type basety) {
+		boolean first = true;
+
+		while (!consume(";")) {
+			if (!first) skip(",");
+			first = false;
+
+			Type ty = declarator(basety);
+			new_gvar(ty);
+		}
+	}
+
+	// Lookahead tokens and returns true if a given token is a start
+	// of a function definition or declaration.
+	private static boolean is_function() {
+		if (tok.equals(";")) return false;
+
+		Type dummy = new Type();
+		Token start = tok;
+		Type ty = declarator(dummy);
+		tok = start;
+		
+		return ty.kind == Type.Kind.FUNC;
+	}
+		
 	private static Token tok;
 
 	// program = function-definition*
@@ -663,7 +688,15 @@ class Node {
 		
 		while (tok.kind != Token.Kind.EOF) {
 			Type basety = declspec();	
-			tok = function(basety);
+		    
+			// Function
+		    if (is_function()) {
+		      function(basety);
+		      continue;
+		    }
+
+		    // Global variable
+		    global_variable(basety);
 		}
 		return globals;
 	}

@@ -14,23 +14,6 @@ class Obj {
 	Obj locals;
 	int stack_size;
 	
-	Obj(String name, Obj locals) {
-		this.name = name;
-		this.next = locals;		
-	}
-	
-	Obj(Type ty, Obj locals) {
-		this.name = ty.name.str;
-		this.ty = ty;		
-		this.next = locals;
-	}	
-
-	Obj(String name, Type ty, Obj locals) {
-		this.name = name;
-		this.ty = ty;
-		this.next = locals;
-	}
-
 	@Override
 	public String toString() {
 		if (name != null) return name.toString();
