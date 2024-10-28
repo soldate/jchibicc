@@ -561,7 +561,7 @@ class Node {
 	  return node;
 	}
 
-	// primary = "(" expr ")" | ident func-args? | num
+	// primary = "(" expr ")" | "sizeof" unary | ident func-args? | num
 	private static Node primary() {
 		if (tok.equals("(")) {
 			tok = tok.next;
@@ -570,8 +570,15 @@ class Node {
 			return node;
 		}
 
+		if (tok.equals("sizeof")) {
+			tok = tok.next;
+			Node node = unary();
+			Type.add_type(node);
+			return new Node(node.ty.size, tok);
+		}
+
 		if (tok.kind == Token.Kind.IDENT) {
-		    // Function call
+			// Function call
 			if (tok.next.equals("("))
 			      return funcall();
 
